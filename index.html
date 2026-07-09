@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f172a">
+<title>Trackr Mobile</title>
+<style>
+:root{
+  --bg:#f8fafc; --card:#ffffff; --ink:#0f172a; --mut:#64748b; --line:#e2e8f0;
+  --acc:#2563eb; --acc-ink:#ffffff; --danger:#dc2626;
+  --s-not:#e5e7eb; --s-not-ink:#374151;
+  --s-app:#dbeafe; --s-app-ink:#1d4ed8;
+  --s-oa:#e0e7ff;  --s-oa-ink:#4338ca;
+  --s-int:#ffedd5; --s-int-ink:#c2410c;
+  --s-off:#d1fae5; --s-off-ink:#047857;
+  --s-rej:#fee2e2; --s-rej-ink:#b91c1c;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f172a; --card:#1e293b; --ink:#f1f5f9; --mut:#94a3b8; --line:#334155;
+    --acc:#3b82f6;
+    --s-not:#334155; --s-not-ink:#cbd5e1;
+    --s-app:#1e3a8a; --s-app-ink:#93c5fd;
+    --s-oa:#312e81;  --s-oa-ink:#a5b4fc;
+    --s-int:#7c2d12; --s-int-ink:#fdba74;
+    --s-off:#064e3b; --s-off-ink:#6ee7b7;
+    --s-rej:#7f1d1d; --s-rej-ink:#fca5a5;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);
+  padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:88px;resize:vertical}
+label{display:block;font-size:.78rem;font-weight:600;color:var(--mut);margin:12px 0 4px}
+a{color:var(--acc)}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:calc(10px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--line)}
+header h1{font-size:1.05rem;flex:1}
+.hbtn{background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+  padding:7px 11px;font-size:.95rem;line-height:1}
+.hbtn:active{opacity:.7}
+#syncDot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex:none}
+#syncDot.ok{background:#10b981} #syncDot.err{background:#ef4444} #syncDot.busy{background:#f59e0b}
+
+/* controls */
+.controls{padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--mut);
+  border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+
+/* cards */
+#list{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  -webkit-tap-highlight-color:transparent}
+.card:active{opacity:.75}
+.c-top{display:flex;align-items:flex-start;gap:8px}
+.c-co{font-weight:700;font-size:.95rem;flex:1;min-width:0}
+.c-role{font-size:.8rem;color:var(--mut);margin-top:2px;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.c-meta{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:.75rem;color:var(--mut)}
+.c-meta b{color:var(--ink);font-weight:600}
+.open-dot{color:#10b981;font-weight:700}
+.badge{flex:none;font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.s-not{background:var(--s-not);color:var(--s-not-ink)}
+.s-app{background:var(--s-app);color:var(--s-app-ink)}
+.s-oa{background:var(--s-oa);color:var(--s-oa-ink)}
+.s-int{background:var(--s-int);color:var(--s-int-ink)}
+.s-off{background:var(--s-off);color:var(--s-off-ink)}
+.s-rej{background:var(--s-rej);color:var(--s-rej-ink)}
+.empty{text-align:center;color:var(--mut);padding:48px 20px;font-size:.9rem}
+
+/* fab */
+#fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:20;
+  width:54px;height:54px;border-radius:50%;border:none;background:var(--acc);color:#fff;
+  font-size:1.7rem;line-height:1;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+
+/* sheets */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none;align-items:flex-end}
+.overlay.show{display:flex}
+.sheet{background:var(--bg);width:100%;max-height:92vh;border-radius:18px 18px 0 0;
+  display:flex;flex-direction:column}
+.sh-head{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sh-head h2{font-size:1rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-x{background:none;border:none;font-size:1.5rem;color:var(--mut);padding:0 4px;line-height:1}
+.sh-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 16px 16px}
+.sh-foot{display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line)}
+.btn{flex:1;border-radius:12px;padding:13px;font-weight:700;font-size:.95rem;border:1px solid var(--line);
+  background:var(--card);color:var(--ink)}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5}
+
+/* detail rows */
+.drow{padding:10px 0;border-bottom:1px solid var(--line);font-size:.88rem}
+.drow:last-child{border-bottom:none}
+.drow .k{font-size:.72rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}
+.drow .v{white-space:pre-wrap;word-break:break-word}
+.linkbtns{display:flex;gap:8px;margin:12px 0 4px;flex-wrap:wrap}
+.linkbtn{flex:1;min-width:120px;text-align:center;text-decoration:none;border:1px solid var(--acc);
+  color:var(--acc);border-radius:12px;padding:11px;font-weight:700;font-size:.85rem}
+
+/* stage rows in edit */
+.stg{display:flex;gap:6px;margin-bottom:6px}
+.stg input:first-child{width:46%}
+.stg .stg-x{flex:none;width:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--danger)}
+
+/* setup */
+#setup{max-width:460px;margin:0 auto;padding:36px 22px}
+#setup h1{font-size:1.3rem;margin-bottom:6px}
+#setup p{font-size:.85rem;color:var(--mut);line-height:1.5;margin-bottom:8px}
+#setup .btn{margin-top:18px;width:100%}
+.note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:.78rem;
+  color:var(--mut);line-height:1.5;margin-top:16px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));
+  background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:.85rem;font-weight:600;
+  opacity:0;transition:opacity .2s;z-index:50;pointer-events:none;max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.toast.err{background:var(--danger);color:#fff}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup" style="display:none">
+  <h1>📱 Trackr Mobile</h1>
+  <p>This page stores nothing on any server. It talks directly from your phone to the GitHub API and saves your access token only in this browser.</p>
+  <label>GitHub username</label><input id="s_owner" autocapitalize="none" autocorrect="off">
+  <label>Data repository (private)</label><input id="s_repo" autocapitalize="none" autocorrect="off">
+  <label>CSV file path in repo</label><input id="s_path" autocapitalize="none" autocorrect="off">
+  <label>Fine-grained personal access token</label>
+  <input id="s_token" type="password" autocapitalize="none" autocorrect="off" placeholder="github_pat_…">
+  <button class="btn primary" onclick="saveSetup()">Connect</button>
+  <div class="note"><b>Token safety:</b> create a <i>fine-grained</i> token scoped to the data repo only, with
+  Contents read &amp; write as its single permission, and set an expiry. It can then touch nothing else in your
+  account. Use “Lock” in the app header to wipe it from this phone at any time.</div>
+</div>
+
+<!-- MAIN -->
+<div id="main" style="display:none">
+  <header>
+    <div id="syncDot"></div>
+    <h1>Internship Trackr</h1>
+    <button class="hbtn" onclick="loadData(true)" title="Refresh">⟳</button>
+    <button class="hbtn" onclick="lockApp()" title="Lock (forget token)">🔒</button>
+  </header>
+  <div class="controls">
+    <input id="search" type="search" placeholder="Search companies, roles, locations…">
+    <div class="chips" id="chips"></div>
+  </div>
+  <div id="list"></div>
+  <button id="fab" onclick="openAdd()">+</button>
+</div>
+
+<!-- DETAIL SHEET -->
+<div class="overlay" id="ovDetail" onclick="if(event.target===this)closeSheet('ovDetail')">
+  <div class="sheet">
+    <div class="sh-head"><h2 id="d_title"></h2><button class="sh-x" onclick="closeSheet('ovDetail')">×</button></div>
+    <div class="sh-body" id="d_body"></div>
+    <div class="sh-foot">
+      <button class="btn" onclick="closeSheet('ovDetail')">Close</button>
+      <button class="btn primary" onclick="openEdit(currentId)">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT / ADD SHEET -->
+<div class="overlay" id="ovEdit" onclick="if(event.target===this)closeSheet('ovEdit')">
+  <div class="sheet">
+    <div class="sh-head"><h2 id="e_title">Edit</h2><button class="sh-x" onclick="closeSheet('ovEdit')">×</button></div>
+    <div class="sh-body">
+      <div id="e_addonly" style="display:none">
+        <label>Company Name *</label><input id="e_co">
+        <label>Programme / Role Name *</label><input id="e_role">
+        <label>Location</label><input id="e_loc">
+        <label>Application Portal Link</label><input id="e_portal" type="url" autocapitalize="none">
+        <label>Cover Letter Required</label>
+        <select id="e_clreq"><option value="">—</option><option>Yes</option><option>No</option><option>Optional</option></select>
+      </div>
+      <label>Current Status</label>
+      <select id="e_status">
+        <option>Not Started</option><option>Applied</option><option>OA Stage</option>
+        <option>Interviewing</option><option>Offer</option><option>Rejected</option>
+      </select>
+      <label>Applications Open?</label>
+      <select id="e_appopen"><option value="">Not yet</option><option value="Yes">Yes — open now</option></select>
+      <label>Closing Date</label><input id="e_close" type="date">
+      <label>Date Applied</label><input id="e_applied" type="date">
+      <label>Stage History</label>
+      <div id="e_stages"></div>
+      <button class="hbtn" style="margin-top:2px" onclick="addStageRow()">+ Add Stage</button>
+      <datalist id="stageOpts">
+        <option>Applied</option><option>OA</option><option>HireVue</option>
+        <option>Video Interview</option><option>Phone Interview</option><option>Technical Interview</option>
+        <option>Assessment Centre</option><option>Superday</option><option>Offer</option><option>Rejected</option>
+      </datalist>
+      <label>Add a note <span style="font-weight:400">(appended with today’s date)</span></label>
+      <textarea id="e_note" placeholder="OA invite received…"></textarea>
+    </div>
+    <div class="sh-foot">
+      <button class="btn" onclick="closeSheet('ovEdit')">Cancel</button>
+      <button class="btn primary" id="e_save" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ── Schema (must match desktop tracker) ───────────────────────────────────────
+const FIELDS = [
+  'ID','Company Name','Company Description','Role Description','Programme/Role Name','Location',
+  'Opening Date','Last Year Opening Date','Closing Date','Rolling Deadlines','Application Portal Link',
+  'Link to Cover Letter','CV/Resume Version','Expected Process Stages',
+  'Testing/Prep Info','Current Status','Date Applied','Notes for Progress','Cover Letter Required',
+  'Research Link','Acceptance Rate','Conversion Rate','Applications Open','Cover Letter Draft','Draft Made',
+  'Stage History'
+];
+const STATUSES = ['Not Started','Applied','OA Stage','Interviewing','Offer','Rejected'];
+const STATUS_CLS = {'Not Started':'s-not','Applied':'s-app','OA Stage':'s-oa',
+  'Interviewing':'s-int','Offer':'s-off','Rejected':'s-rej'};
+
+// ── Config (token lives only in this browser's localStorage) ─────────────────
+const DEFAULTS = {owner:'SuperWalrus01', repo:'internship-tracker', path:'internship_tracker.csv'};
+const cfgGet = k => localStorage.getItem('tm_'+k) || '';
+const cfgSet = (k,v) => localStorage.setItem('tm_'+k, v);
+function cfg(){ return {owner:cfgGet('owner'), repo:cfgGet('repo'), path:cfgGet('path'), token:cfgGet('token')}; }
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let apps = [];
+let fileSha = null;
+let currentId = null;
+let editIsAdd = false;
+let statusFilter = '';
+
+// ── CSV (same parser/serializer as desktop) ───────────────────────────────────
+function parseCSV(text){
+  const rows=[]; let i=0,n=text.length;
+  while(i<n){
+    const row=[];
+    while(true){
+      let f='';
+      if(text[i]==='"'){
+        i++;
+        while(i<n){if(text[i]==='"'){if(text[i+1]==='"'){f+='"';i+=2;}else{i++;break;}}else f+=text[i++];}
+      }else{
+        while(i<n&&text[i]!==','&&text[i]!=='\n'&&text[i]!=='\r')f+=text[i++];
+      }
+      row.push(f);
+      if(i>=n||text[i]==='\n'||text[i]==='\r'){if(text[i]==='\r'&&text[i+1]==='\n')i+=2;else if(i<n)i++;break;}
+      i++;
+    }
+    if(row.some(f=>f!==''))rows.push(row);
+  }
+  return rows;
+}
+function csvToApps(text){
+  const rows=parseCSV(text); if(rows.length<2)return[];
+  const hdrs=rows[0];
+  return rows.slice(1).map(row=>{
+    const obj={}; FIELDS.forEach(f=>obj[f]='');
+    hdrs.forEach((h,i)=>{if(FIELDS.includes(h))obj[h]=row[i]||'';});
+    return obj;
+  });
+}
+function toCSV(list){
+  const q=v=>{v=(v||'').toString();return(v.includes(',')||v.includes('"')||v.includes('\n')||v.includes('\r'))?'"'+v.replace(/"/g,'""')+'"':v;};
+  return [FIELDS.join(','),...list.map(a=>FIELDS.map(f=>q(a[f])).join(','))].join('\r\n');
+}
+
+// ── Stage history helpers (same semantics as desktop) ─────────────────────────
+function parseStages(str){
+  return (str||'').split('\n').map(l=>{
+    const [d,...rest]=l.split('|');
+    return {d:(d||'').trim(), s:rest.join('|').trim()};
+  }).filter(e=>e.s);
+}
+function serializeStages(list){
+  return list.filter(e=>e.s)
+    .sort((a,b)=>(a.d||'9999')<(b.d||'9999')?-1:1)
+    .map(e=>`${e.d}|${e.s}`).join('\n');
+}
+function stageToStatus(s){
+  s=(s||'').toLowerCase();
+  if(!s)return null;
+  if(/reject|declin|unsuccess/.test(s))return 'Rejected';
+  if(/offer/.test(s))return 'Offer';
+  if(/interview|hirevue|superday|assessment centre|assessment center|\bac\b|\bvi\b|\bti\b|phone|case study/.test(s))return 'Interviewing';
+  if(/\boa\b|online assessment|test|job ?sim/.test(s))return 'OA Stage';
+  if(/appli/.test(s))return 'Applied';
+  return null;
+}
+function genId(){return Math.random().toString(16).slice(2,10);}
+
+// ── UTF-8-safe base64 ─────────────────────────────────────────────────────────
+function b64decode(b64){
+  const bin=atob(b64.replace(/\s/g,''));
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function b64encode(str){
+  const bytes=new TextEncoder().encode(str);
+  let bin='';
+  for(let i=0;i<bytes.length;i+=0x8000)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+  return btoa(bin);
+}
+
+// ── GitHub Contents API ───────────────────────────────────────────────────────
+function apiUrl(){
+  const c=cfg();
+  return `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${c.path.split('/').map(encodeURIComponent).join('/')}`;
+}
+function headers(){
+  return {'Authorization':'Bearer '+cfg().token,
+          'Accept':'application/vnd.github+json',
+          'X-GitHub-Api-Version':'2022-11-28'};
+}
+async function ghFetchFile(){
+  const r=await fetch(apiUrl()+'?t='+Date.now(),{headers:headers()});
+  if(r.status===401||r.status===403)throw new Error('AUTH');
+  if(r.status===404)throw new Error('NOTFOUND');
+  if(!r.ok)throw new Error('GitHub returned '+r.status);
+  const data=await r.json();
+  return {text:b64decode(data.content), sha:data.sha};
+}
+async function ghPutFile(text,sha,message){
+  const r=await fetch(apiUrl(),{
+    method:'PUT',headers:{...headers(),'Content-Type':'application/json'},
+    body:JSON.stringify({message,content:b64encode(text),sha})
+  });
+  if(r.status===409)throw new Error('CONFLICT');
+  if(r.status===401||r.status===403)throw new Error('AUTH');
+  if(!r.ok)throw new Error('GitHub returned '+r.status);
+  const data=await r.json();
+  return data.content.sha;
+}
+
+// Fetch fresh copy, apply mutator to it, push. Retries once on a mid-flight conflict.
+async function commitChange(mutator,message){
+  setDot('busy');
+  for(let attempt=0;attempt<2;attempt++){
+    const {text,sha}=await ghFetchFile();
+    const fresh=csvToApps(text);
+    mutator(fresh);
+    try{
+      fileSha=await ghPutFile(toCSV(fresh),sha,message);
+      apps=fresh;
+      setDot('ok');
+      return;
+    }catch(e){
+      if(e.message!=='CONFLICT'||attempt===1){setDot('err');throw e;}
+    }
+  }
+}
+
+// ── Load & render ─────────────────────────────────────────────────────────────
+function setDot(cls){document.getElementById('syncDot').className=cls;}
+let toastTimer;
+function toast(msg,err){
+  const el=document.getElementById('toast');clearTimeout(toastTimer);
+  el.textContent=msg;el.className='toast'+(err?' err':'')+' show';
+  toastTimer=setTimeout(()=>el.classList.remove('show'),err?3500:2000);
+}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtShort(ds){
+  if(!ds)return '—';
+  const [y,m,d]=ds.split('-');
+  const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${mon[parseInt(m)-1]} '${y.slice(2)}`;
+}
+function today(){return new Date().toISOString().slice(0,10);}
+
+async function loadData(manual){
+  setDot('busy');
+  try{
+    const {text,sha}=await ghFetchFile();
+    apps=csvToApps(text);fileSha=sha;
+    setDot('ok');render();
+    if(manual)toast('Up to date — '+apps.length+' applications');
+  }catch(e){
+    setDot('err');
+    if(e.message==='AUTH'){toast('Token rejected — check it in setup',true);showSetup();}
+    else if(e.message==='NOTFOUND'){toast('CSV not found — check repo/path',true);showSetup();}
+    else toast('Couldn’t load: '+e.message,true);
+  }
+}
+
+function renderChips(){
+  const counts={};apps.forEach(a=>{const s=a['Current Status']||'Not Started';counts[s]=(counts[s]||0)+1;});
+  const el=document.getElementById('chips');
+  el.innerHTML=[''].concat(STATUSES).map(s=>{
+    const label=s===''?`All (${apps.length})`:`${s} (${counts[s]||0})`;
+    return `<button class="chip${statusFilter===s?' on':''}" onclick="setFilter('${s}')">${label}</button>`;
+  }).join('');
+}
+function setFilter(s){statusFilter=s;render();}
+
+function render(){
+  renderChips();
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
+    if(statusFilter&&(a['Current Status']||'Not Started')!==statusFilter)return false;
+    if(!q)return true;
+    return ['Company Name','Programme/Role Name','Location','Notes for Progress']
+      .some(f=>(a[f]||'').toLowerCase().includes(q));
+  });
+  // upcoming deadlines first, no-deadline after, rejected last
+  list.sort((x,y)=>{
+    const rx=x.a['Current Status']==='Rejected'?1:0, ry=y.a['Current Status']==='Rejected'?1:0;
+    if(rx!==ry)return rx-ry;
+    const cx=x.a['Closing Date']||'9999', cy=y.a['Closing Date']||'9999';
+    return cx<cy?-1:cx>cy?1:0;
+  });
+  const el=document.getElementById('list');
+  if(!list.length){el.innerHTML='<div class="empty">No applications match.</div>';return;}
+  el.innerHTML=list.map(({a})=>{
+    const s=a['Current Status']||'Not Started';
+    const open=a['Applications Open']==='Yes'?'<span class="open-dot">●</span> Open now':'';
+    const close=a['Closing Date']?`Closes <b>${fmtShort(a['Closing Date'])}</b>`:'';
+    const applied=a['Date Applied']?`Applied <b>${fmtShort(a['Date Applied'])}</b>`:'';
+    const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
+    const meta=[open,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
+    return `<div class="card" onclick="openDetail('${esc(a['ID'])}')">
+      <div class="c-top">
+        <div style="flex:1;min-width:0">
+          <div class="c-co">${esc(a['Company Name'])}</div>
+          <div class="c-role">${esc(a['Programme/Role Name'])}${a['Location']?' · '+esc(a['Location']):''}</div>
+        </div>
+        <span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>
+      </div>
+      ${meta?`<div class="c-meta">${meta}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── Detail sheet ──────────────────────────────────────────────────────────────
+function findApp(id){return apps.find(a=>a['ID']===id);}
+function openDetail(id){
+  const a=findApp(id);if(!a)return;
+  currentId=id;
+  document.getElementById('d_title').textContent=a['Company Name'];
+  const rows=[];
+  const s=a['Current Status']||'Not Started';
+  rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
+  rows.push(`<div class="drow"><div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span></div></div>`);
+  const dl=[
+    ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
+    ['Closing Date','Closing Date'],['Rolling Deadlines','Rolling Deadlines'],['Date Applied','Date Applied'],
+    ['Cover Letter Required','Cover Letter Required'],['Expected Process Stages','Expected Process Stages'],
+    ['Testing / Prep','Testing/Prep Info'],['Acceptance Rate','Acceptance Rate'],['Conversion Rate','Conversion Rate']
+  ];
+  dl.forEach(([label,f])=>{
+    if(a[f])rows.push(`<div class="drow"><div class="k">${label}</div><div class="v">${esc(a[f])}</div></div>`);
+  });
+  const stg=parseStages(a['Stage History']);
+  if(stg.length)rows.push(`<div class="drow"><div class="k">Stage History</div><div class="v">${
+    stg.map(e=>`${fmtShort(e.d)} — ${esc(e.s)}`).join('<br>')}</div></div>`);
+  if(a['Notes for Progress'])rows.push(`<div class="drow"><div class="k">Notes</div><div class="v">${esc(a['Notes for Progress'])}</div></div>`);
+  const links=[];
+  if(a['Application Portal Link'])links.push(`<a class="linkbtn" href="${esc(a['Application Portal Link'])}" target="_blank" rel="noopener">Open Portal ↗</a>`);
+  if(a['Link to Cover Letter'])links.push(`<a class="linkbtn" href="${esc(a['Link to Cover Letter'])}" target="_blank" rel="noopener">Cover Letter ↗</a>`);
+  if(a['Research Link'])links.push(`<a class="linkbtn" href="${esc(a['Research Link'])}" target="_blank" rel="noopener">Research ↗</a>`);
+  document.getElementById('d_body').innerHTML=(links.length?`<div class="linkbtns">${links.join('')}</div>`:'')+rows.join('');
+  document.getElementById('ovDetail').classList.add('show');
+}
+function closeSheet(id){document.getElementById(id).classList.remove('show');}
+
+// ── Edit / Add ────────────────────────────────────────────────────────────────
+function addStageRow(s,d){
+  const div=document.createElement('div');div.className='stg';
+  div.innerHTML=`<input type="date" class="stg-d"><input type="text" class="stg-s" list="stageOpts" placeholder="Stage">
+    <button class="stg-x" onclick="this.parentNode.remove()">×</button>`;
+  if(d)div.querySelector('.stg-d').value=d;
+  if(s)div.querySelector('.stg-s').value=s;
+  document.getElementById('e_stages').appendChild(div);
+}
+function collectStages(){
+  return [...document.querySelectorAll('#e_stages .stg')].map(r=>({
+    d:r.querySelector('.stg-d').value.trim(), s:r.querySelector('.stg-s').value.trim()
+  })).filter(e=>e.s);
+}
+function openEdit(id){
+  const a=findApp(id);if(!a)return;
+  editIsAdd=false;currentId=id;
+  closeSheet('ovDetail');
+  document.getElementById('e_title').textContent='Edit — '+a['Company Name'];
+  document.getElementById('e_addonly').style.display='none';
+  document.getElementById('e_status').value=STATUSES.includes(a['Current Status'])?a['Current Status']:'Not Started';
+  document.getElementById('e_appopen').value=a['Applications Open']==='Yes'?'Yes':'';
+  document.getElementById('e_close').value=a['Closing Date']||'';
+  document.getElementById('e_applied').value=a['Date Applied']||'';
+  document.getElementById('e_note').value='';
+  document.getElementById('e_stages').innerHTML='';
+  parseStages(a['Stage History']).forEach(e=>addStageRow(e.s,e.d));
+  document.getElementById('ovEdit').classList.add('show');
+}
+function openAdd(){
+  editIsAdd=true;currentId=null;
+  document.getElementById('e_title').textContent='Add Application';
+  document.getElementById('e_addonly').style.display='';
+  ['e_co','e_role','e_loc','e_portal'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('e_clreq').value='';
+  document.getElementById('e_status').value='Not Started';
+  document.getElementById('e_appopen').value='';
+  document.getElementById('e_close').value='';
+  document.getElementById('e_applied').value='';
+  document.getElementById('e_note').value='';
+  document.getElementById('e_stages').innerHTML='';
+  document.getElementById('ovEdit').classList.add('show');
+}
+async function saveEdit(){
+  const btn=document.getElementById('e_save');
+  const status=document.getElementById('e_status').value;
+  const appopen=document.getElementById('e_appopen').value;
+  const close=document.getElementById('e_close').value;
+  const applied=document.getElementById('e_applied').value;
+  const note=document.getElementById('e_note').value.trim();
+  const stages=serializeStages(collectStages());
+  let msg,apply;
+  if(editIsAdd){
+    const co=document.getElementById('e_co').value.trim();
+    const role=document.getElementById('e_role').value.trim();
+    if(!co||!role){toast('Company and role are required',true);return;}
+    const a={};FIELDS.forEach(f=>a[f]='');
+    a['ID']=genId();a['Company Name']=co;a['Programme/Role Name']=role;
+    a['Location']=document.getElementById('e_loc').value.trim();
+    a['Application Portal Link']=document.getElementById('e_portal').value.trim();
+    a['Cover Letter Required']=document.getElementById('e_clreq').value;
+    a['Current Status']=status;a['Applications Open']=appopen;
+    a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
+    if(note)a['Notes for Progress']=`[${today()}] ${note}`;
+    msg=`mobile: add ${co} — ${role}`;
+    apply=list=>list.push(a);
+  }else{
+    const id=currentId;
+    const cur=findApp(id);if(!cur)return;
+    msg=`mobile: update ${cur['Company Name']}`+(status!==cur['Current Status']?` → ${status}`:'');
+    apply=list=>{
+      const a=list.find(x=>x['ID']===id);
+      if(!a)throw new Error('This application no longer exists in the latest data — refresh and retry.');
+      a['Current Status']=status;a['Applications Open']=appopen;
+      a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
+      if(note)a['Notes for Progress']=(a['Notes for Progress']?a['Notes for Progress']+'\n':'')+`[${today()}] ${note}`;
+    };
+  }
+  btn.disabled=true;btn.textContent='Saving…';
+  try{
+    await commitChange(apply,msg);
+    closeSheet('ovEdit');render();
+    toast('Saved ✓');
+  }catch(e){
+    toast(e.message==='AUTH'?'Token rejected — reconnect':'Save failed: '+e.message,true);
+  }finally{
+    btn.disabled=false;btn.textContent='Save';
+  }
+}
+
+// ── Setup / lock ──────────────────────────────────────────────────────────────
+function showSetup(){
+  document.getElementById('main').style.display='none';
+  document.getElementById('setup').style.display='';
+  document.getElementById('s_owner').value=cfgGet('owner')||DEFAULTS.owner;
+  document.getElementById('s_repo').value=cfgGet('repo')||DEFAULTS.repo;
+  document.getElementById('s_path').value=cfgGet('path')||DEFAULTS.path;
+  document.getElementById('s_token').value='';
+}
+function saveSetup(){
+  const owner=document.getElementById('s_owner').value.trim();
+  const repo=document.getElementById('s_repo').value.trim();
+  const path=document.getElementById('s_path').value.trim();
+  const token=document.getElementById('s_token').value.trim();
+  if(!owner||!repo||!path||!token){toast('All fields are required',true);return;}
+  cfgSet('owner',owner);cfgSet('repo',repo);cfgSet('path',path);cfgSet('token',token);
+  startApp();
+}
+function lockApp(){
+  if(!confirm('Forget the access token on this phone? Your data on GitHub is untouched.'))return;
+  localStorage.removeItem('tm_token');
+  apps=[];document.getElementById('list').innerHTML='';
+  showSetup();
+  toast('Token removed from this phone');
+}
+function startApp(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('main').style.display='';
+  loadData(false);
+}
+
+document.getElementById('search').addEventListener('input',render);
+if(cfg().token)startApp();else showSetup();
+</script>
+</body>
+</html>
