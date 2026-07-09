@@ -79,6 +79,9 @@ header h1{font-size:1.05rem;flex:1}
 .s-int{background:var(--s-int);color:var(--s-int-ink)}
 .s-off{background:var(--s-off);color:var(--s-off-ink)}
 .s-rej{background:var(--s-rej);color:var(--s-rej-ink)}
+.ind-tag{font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.ind-finance{background:var(--s-off);color:var(--s-off-ink)}
+.ind-tech{background:var(--s-app);color:var(--s-app-ink)}
 .empty{text-align:center;color:var(--mut);padding:48px 20px;font-size:.9rem}
 
 /* fab */
@@ -204,6 +207,11 @@ header h1{font-size:1.05rem;flex:1}
       <input id="search" type="search" placeholder="Search companies, roles, locations…">
       <div class="chips" id="chips"></div>
       <div class="sortbar">
+        <select id="sectorSel" onchange="render()">
+          <option value="">Finance &amp; Tech</option>
+          <option>Finance</option>
+          <option>Tech</option>
+        </select>
         <select id="sortSel" onchange="setSort(this.value)">
           <option value="">Sort: deadline soonest</option>
           <option value="open">Sort: Opening Date</option>
@@ -276,6 +284,8 @@ header h1{font-size:1.05rem;flex:1}
         <label>Cover Letter Required</label>
         <select id="e_clreq"><option value="">—</option><option>Yes</option><option>No</option><option>Optional</option></select>
       </div>
+      <label>Industry</label>
+      <select id="e_industry"><option value="">—</option><option>Finance</option><option>Tech</option></select>
       <label>Current Status</label>
       <select id="e_status">
         <option>Not Started</option><option>Applied</option><option>OA Stage</option>
@@ -314,7 +324,7 @@ const FIELDS = [
   'Link to Cover Letter','CV/Resume Version','Expected Process Stages',
   'Testing/Prep Info','Current Status','Date Applied','Notes for Progress','Cover Letter Required',
   'Research Link','Acceptance Rate','Conversion Rate','Applications Open','Cover Letter Draft','Draft Made',
-  'Stage History'
+  'Stage History','Industry'
 ];
 const STATUSES = ['Not Started','Applied','OA Stage','Interviewing','Offer','Rejected'];
 const STATUS_CLS = {'Not Started':'s-not','Applied':'s-app','OA Stage':'s-oa',
@@ -532,8 +542,10 @@ function render(){
 function renderList(){
   renderChips();
   const q=document.getElementById('search').value.trim().toLowerCase();
+  const sec=document.getElementById('sectorSel').value;
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
     if(statusFilter&&(a['Current Status']||'Not Started')!==statusFilter)return false;
+    if(sec&&a['Industry']!==sec)return false;
     if(!q)return true;
     return ['Company Name','Programme/Role Name','Location','Notes for Progress']
       .some(f=>(a[f]||'').toLowerCase().includes(q));
@@ -573,7 +585,10 @@ function renderList(){
           <div class="c-co">${esc(a['Company Name'])}</div>
           <div class="c-role">${esc(a['Programme/Role Name'])}${a['Location']?' · '+esc(a['Location']):''}</div>
         </div>
-        <span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:none">
+          <span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>
+          ${a['Industry']?`<span class="ind-tag ind-${esc(a['Industry']).toLowerCase()}">${esc(a['Industry'])}</span>`:''}
+        </div>
       </div>
       ${meta?`<div class="c-meta">${meta}</div>`:''}
     </div>`;
@@ -678,6 +693,7 @@ function openDetail(id){
   rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
   rows.push(`<div class="drow"><div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span></div></div>`);
   const dl=[
+    ['Industry','Industry'],
     ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
     ['Closing Date','Closing Date'],['Rolling Deadlines','Rolling Deadlines'],['Date Applied','Date Applied'],
     ['Cover Letter Required','Cover Letter Required'],['Expected Process Stages','Expected Process Stages'],
@@ -719,6 +735,7 @@ function openEdit(id){
   closeSheet('ovDetail');
   document.getElementById('e_title').textContent='Edit — '+a['Company Name'];
   document.getElementById('e_addonly').style.display='none';
+  document.getElementById('e_industry').value=a['Industry']||'';
   document.getElementById('e_status').value=STATUSES.includes(a['Current Status'])?a['Current Status']:'Not Started';
   document.getElementById('e_appopen').value=a['Applications Open']==='Yes'?'Yes':'';
   document.getElementById('e_close').value=a['Closing Date']||'';
@@ -734,6 +751,7 @@ function openAdd(){
   document.getElementById('e_addonly').style.display='';
   ['e_co','e_role','e_loc','e_portal'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('e_clreq').value='';
+  document.getElementById('e_industry').value='';
   document.getElementById('e_status').value='Not Started';
   document.getElementById('e_appopen').value='';
   document.getElementById('e_close').value='';
@@ -745,6 +763,7 @@ function openAdd(){
 async function saveEdit(){
   const btn=document.getElementById('e_save');
   const status=document.getElementById('e_status').value;
+  const industry=document.getElementById('e_industry').value;
   const appopen=document.getElementById('e_appopen').value;
   const close=document.getElementById('e_close').value;
   const applied=document.getElementById('e_applied').value;
@@ -760,6 +779,7 @@ async function saveEdit(){
     a['Location']=document.getElementById('e_loc').value.trim();
     a['Application Portal Link']=document.getElementById('e_portal').value.trim();
     a['Cover Letter Required']=document.getElementById('e_clreq').value;
+    a['Industry']=industry;
     a['Current Status']=status;a['Applications Open']=appopen;
     a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
     if(note)a['Notes for Progress']=`[${today()}] ${note}`;
@@ -772,6 +792,7 @@ async function saveEdit(){
     apply=list=>{
       const a=list.find(x=>x['ID']===id);
       if(!a)throw new Error('This application no longer exists in the latest data — refresh and retry.');
+      a['Industry']=industry;
       a['Current Status']=status;a['Applications Open']=appopen;
       a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
       if(note)a['Notes for Progress']=(a['Notes for Progress']?a['Notes for Progress']+'\n':'')+`[${today()}] ${note}`;
