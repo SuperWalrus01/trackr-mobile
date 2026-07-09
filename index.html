@@ -61,6 +61,8 @@ header h1{font-size:1.05rem;flex:1}
 .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--mut);
   border-radius:999px;padding:6px 12px;font-size:.8rem;font-weight:600;white-space:nowrap}
 .chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.chip.open-chip{color:#059669}
+.chip.open-chip.on{background:#059669;border-color:#059669;color:#fff}
 
 /* cards */
 #list{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
@@ -344,6 +346,7 @@ let fileSha = null;
 let currentId = null;
 let editIsAdd = false;
 let statusFilter = '';
+let openOnly = false;
 let view = 'list';
 let sortCol = null;      // 'open' | 'closing' | 'lyopen' | 'applied' (desktop parity)
 let sortDir = 1;         // 1 asc, -1 desc
@@ -528,13 +531,16 @@ function toggleDir(){
 
 function renderChips(){
   const counts={};apps.forEach(a=>{const s=a['Current Status']||'Not Started';counts[s]=(counts[s]||0)+1;});
+  const nOpen=apps.filter(a=>a['Applications Open']==='Yes').length;
   const el=document.getElementById('chips');
-  el.innerHTML=[''].concat(STATUSES).map(s=>{
+  el.innerHTML=`<button class="chip open-chip${openOnly?' on':''}" onclick="toggleOpenFilter()">● Open now (${nOpen})</button>`
+    +[''].concat(STATUSES).map(s=>{
     const label=s===''?`All (${apps.length})`:`${s} (${counts[s]||0})`;
     return `<button class="chip${statusFilter===s?' on':''}" onclick="setFilter('${s}')">${label}</button>`;
   }).join('');
 }
 function setFilter(s){statusFilter=s;render();}
+function toggleOpenFilter(){openOnly=!openOnly;render();}
 
 function render(){
   if(view==='cal'){renderCal();return;}
@@ -547,6 +553,7 @@ function renderList(){
   const sec=document.getElementById('sectorSel').value;
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
     if(statusFilter&&(a['Current Status']||'Not Started')!==statusFilter)return false;
+    if(openOnly&&a['Applications Open']!=='Yes')return false;
     if(sec&&a['Industry']!==sec)return false;
     if(!q)return true;
     return ['Company Name','Programme/Role Name','Location','Notes for Progress']
