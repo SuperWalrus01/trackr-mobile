@@ -124,6 +124,18 @@ header h1{font-size:1.05rem;flex:1}
 .stg input:first-child{width:46%}
 .stg .stg-x{flex:none;width:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--danger)}
 
+/* closing-soon strip */
+.soon{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 14px 6px}
+.soon::-webkit-scrollbar{display:none}
+.soon-title{flex:none;font-size:.72rem;font-weight:800;color:#d97706;align-self:center;white-space:nowrap}
+.soon-chip{flex:none;border:1px solid #fbbf24;background:var(--card);color:var(--ink);border-radius:999px;
+  padding:6px 11px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.soon-chip b{color:#d97706;margin-left:4px}
+.soon-chip.crit{border-color:#ef4444}
+.soon-chip.crit b{color:#ef4444}
+.dl-warn{color:#d97706;font-weight:700}
+.dl-crit{color:#ef4444;font-weight:700}
+
 /* tabs */
 .tabs{display:flex;gap:6px;padding:10px 14px 0}
 .tab{flex:1;padding:9px;border:1px solid var(--line);background:var(--card);color:var(--mut);
@@ -207,6 +219,7 @@ header h1{font-size:1.05rem;flex:1}
 
   <!-- LIST VIEW -->
   <div id="v-list">
+    <div class="soon" id="soonBar" style="display:none"></div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search companies, roles, locations…">
       <div class="chips" id="chips"></div>
@@ -499,13 +512,26 @@ async function loadData(manual){
   try{
     const {text,sha}=await ghFetchFile();
     apps=csvToApps(text);fileSha=sha;
+    try{
+      localStorage.setItem('tm_cache',text);
+      localStorage.setItem('tm_cacheAt',Date.now());
+    }catch(e){/* storage full — offline copy just won't refresh */}
     setDot('ok');render();
     if(manual)toast('Up to date — '+apps.length+' applications');
   }catch(e){
     setDot('err');
     if(e.message==='AUTH'){toast('Token rejected — check it in setup',true);showSetup();}
     else if(e.message==='NOTFOUND'){toast('CSV not found — check repo/path',true);showSetup();}
-    else toast('Couldn’t load: '+e.message,true);
+    else{
+      // offline (or GitHub unreachable) — fall back to the cached copy
+      const cached=localStorage.getItem('tm_cache');
+      if(cached){
+        if(!apps.length){apps=csvToApps(cached);render();}
+        fileSha=null; // block stale writes; saves refetch anyway
+        const mins=Math.round((Date.now()-(+localStorage.getItem('tm_cacheAt')||Date.now()))/60000);
+        toast(`Offline — showing copy from ${mins<60?mins+' min':Math.round(mins/60)+' h'} ago`,true);
+      }else toast('Couldn’t load: '+e.message,true);
+    }
   }
 }
 
@@ -547,8 +573,29 @@ function render(){
   renderList();
 }
 
+function daysLeft(ds){
+  if(!ds)return null;
+  const t=new Date();t.setHours(0,0,0,0);
+  return Math.round((new Date(ds+'T00:00:00')-t)/86400000);
+}
+
+function renderSoon(){
+  // same rule as the desktop urgency bar: Not Started, closing within 14 days
+  const bar=document.getElementById('soonBar');
+  const urgent=apps.filter(a=>(a['Current Status']||'Not Started')==='Not Started')
+    .map(a=>({a,d:daysLeft(a['Closing Date'])}))
+    .filter(({d})=>d!==null&&d>=0&&d<=14)
+    .sort((x,y)=>x.d-y.d);
+  if(!urgent.length){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='';
+  bar.innerHTML='<span class="soon-title">⚠ Closing soon:</span>'+urgent.map(({a,d})=>
+    `<button class="soon-chip${d<=3?' crit':''}" onclick="openDetail('${esc(a['ID'])}')">${esc(a['Company Name'])}<b>${d===0?'today':d+'d'}</b></button>`
+  ).join('');
+}
+
 function renderList(){
   renderChips();
+  renderSoon();
   const q=document.getElementById('search').value.trim().toLowerCase();
   const sec=document.getElementById('sectorSel').value;
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
@@ -584,7 +631,10 @@ function renderList(){
   el.innerHTML=list.map(({a})=>{
     const s=a['Current Status']||'Not Started';
     const open=a['Applications Open']==='Yes'?'<span class="open-dot">●</span> Open now':'';
-    const close=a['Closing Date']?`Closes <b>${fmtShort(a['Closing Date'])}</b>`:'';
+    const d=daysLeft(a['Closing Date']);
+    const cnt=d===null||d<0||d>14||s!=='Not Started'?''
+      :` <span class="${d<=3?'dl-crit':'dl-warn'}">${d===0?'· today!':`· ${d}d left`}</span>`;
+    const close=a['Closing Date']?`Closes <b>${fmtShort(a['Closing Date'])}</b>${cnt}`:'';
     const applied=a['Date Applied']?`Applied <b>${fmtShort(a['Date Applied'])}</b>`:'';
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
     const meta=[open,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
@@ -838,8 +888,10 @@ function saveSetup(){
   startApp();
 }
 function lockApp(){
-  if(!confirm('Forget the access token on this phone? Your data on GitHub is untouched.'))return;
+  if(!confirm('Forget the access token and offline copy on this phone? Your data on GitHub is untouched.'))return;
   localStorage.removeItem('tm_token');
+  localStorage.removeItem('tm_cache');
+  localStorage.removeItem('tm_cacheAt');
   apps=[];document.getElementById('list').innerHTML='';
   showSetup();
   toast('Token removed from this phone');
@@ -847,6 +899,9 @@ function lockApp(){
 function startApp(){
   document.getElementById('setup').style.display='none';
   document.getElementById('main').style.display='';
+  // instant paint from the offline copy, then refresh from GitHub
+  const cached=localStorage.getItem('tm_cache');
+  if(cached){try{apps=csvToApps(cached);render();}catch(e){}}
   loadData(false);
 }
 
