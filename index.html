@@ -117,6 +117,42 @@ header h1{font-size:1.05rem;flex:1}
 .stg input:first-child{width:46%}
 .stg .stg-x{flex:none;width:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--danger)}
 
+/* tabs */
+.tabs{display:flex;gap:6px;padding:10px 14px 0}
+.tab{flex:1;padding:9px;border:1px solid var(--line);background:var(--card);color:var(--mut);
+  border-radius:10px;font-weight:700;font-size:.85rem}
+.tab.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+
+/* sort bar */
+.sortbar{display:flex;gap:8px}
+.sortbar select{flex:1}
+.dirbtn{flex:none;width:48px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:10px;font-size:1.05rem}
+.dirbtn:disabled{opacity:.4}
+
+/* calendar */
+.cal-controls{display:flex;align-items:center;gap:8px;padding:12px 14px 6px}
+.cal-label{flex:1;text-align:center;font-weight:700;font-size:.95rem}
+.cal-grid{padding:0 10px}
+.cal-dow-row,.cal-body{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-dow{text-align:center;font-size:.62rem;font-weight:700;color:var(--mut);padding:4px 0;text-transform:uppercase}
+.cal-cell{min-height:48px;border:1px solid var(--line);background:var(--card);border-radius:8px;
+  padding:3px 4px;-webkit-tap-highlight-color:transparent}
+.cal-cell.other{opacity:.35}
+.cal-cell.today{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.cal-cell.sel{background:var(--s-app)}
+.cal-num{font-size:.68rem;font-weight:600;color:var(--mut)}
+.cal-cell.today .cal-num{color:var(--acc)}
+.dots{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.hollow{background:transparent !important;border:1px dashed var(--mut);width:6px;height:6px}
+.cal-more{font-size:.55rem;color:var(--mut);margin-top:1px}
+.legend{display:flex;flex-wrap:wrap;gap:5px 12px;padding:10px 16px 2px;font-size:.68rem;color:var(--mut)}
+.leg-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.day-head{font-weight:700;font-size:.88rem;padding:14px 16px 2px}
+#dayList{padding:6px 14px 90px;display:flex;flex-direction:column;gap:8px}
+.ev-type{font-size:.66rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--mut)}
+
 /* setup */
 #setup{max-width:460px;margin:0 auto;padding:36px 22px}
 #setup h1{font-size:1.3rem;margin-bottom:6px}
@@ -157,11 +193,61 @@ header h1{font-size:1.05rem;flex:1}
     <button class="hbtn" onclick="loadData(true)" title="Refresh">⟳</button>
     <button class="hbtn" onclick="lockApp()" title="Lock (forget token)">🔒</button>
   </header>
-  <div class="controls">
-    <input id="search" type="search" placeholder="Search companies, roles, locations…">
-    <div class="chips" id="chips"></div>
+  <div class="tabs">
+    <button class="tab on" id="tab-list" onclick="setView('list')">List</button>
+    <button class="tab" id="tab-cal" onclick="setView('cal')">Calendar</button>
   </div>
-  <div id="list"></div>
+
+  <!-- LIST VIEW -->
+  <div id="v-list">
+    <div class="controls">
+      <input id="search" type="search" placeholder="Search companies, roles, locations…">
+      <div class="chips" id="chips"></div>
+      <div class="sortbar">
+        <select id="sortSel" onchange="setSort(this.value)">
+          <option value="">Sort: deadline soonest</option>
+          <option value="open">Sort: Opening Date</option>
+          <option value="closing">Sort: Closing Date</option>
+          <option value="lyopen">Sort: Last Yr Opening</option>
+          <option value="applied">Sort: Date Applied</option>
+        </select>
+        <button class="dirbtn" id="dirBtn" onclick="toggleDir()" disabled title="Sort direction">↑</button>
+      </div>
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div id="v-cal" style="display:none">
+    <div class="cal-controls">
+      <button class="hbtn" onclick="calPrev()">‹</button>
+      <span class="cal-label" id="calLabel"></span>
+      <button class="hbtn" onclick="calNext()">›</button>
+      <button class="hbtn" onclick="calToday()">Today</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow-row">
+        <div class="cal-dow">Mo</div><div class="cal-dow">Tu</div><div class="cal-dow">We</div>
+        <div class="cal-dow">Th</div><div class="cal-dow">Fr</div><div class="cal-dow">Sa</div>
+        <div class="cal-dow">Su</div>
+      </div>
+      <div class="cal-body" id="calBody"></div>
+    </div>
+    <div class="legend">
+      <span><span class="leg-dot" style="background:#9ca3af"></span>Not Started</span>
+      <span><span class="leg-dot" style="background:#3b82f6"></span>Applied / OA</span>
+      <span><span class="leg-dot" style="background:#f97316"></span>Interviewing</span>
+      <span><span class="leg-dot" style="background:#10b981"></span>Offer</span>
+      <span><span class="leg-dot" style="background:#ef4444"></span>Rejected</span>
+      <span><span class="leg-dot" style="background:#818cf8"></span>✓ Applied on</span>
+      <span><span class="leg-dot" style="background:#a78bfa"></span>Stage</span>
+      <span><span class="leg-dot" style="background:#34d399"></span>● Opened</span>
+      <span><span class="leg-dot" style="background:transparent;border:1px dashed var(--mut)"></span>Est. opens</span>
+    </div>
+    <div class="day-head" id="dayHead"></div>
+    <div id="dayList"></div>
+  </div>
+
   <button id="fab" onclick="openAdd()">+</button>
 </div>
 
@@ -246,6 +332,14 @@ let fileSha = null;
 let currentId = null;
 let editIsAdd = false;
 let statusFilter = '';
+let view = 'list';
+let sortCol = null;      // 'open' | 'closing' | 'lyopen' | 'applied' (desktop parity)
+let sortDir = 1;         // 1 asc, -1 desc
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let selDate = '';
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
 
 // ── CSV (same parser/serializer as desktop) ───────────────────────────────────
 function parseCSV(text){
@@ -400,6 +494,26 @@ async function loadData(manual){
   }
 }
 
+function setView(v){
+  view=v;
+  document.getElementById('v-list').style.display=v==='list'?'':'none';
+  document.getElementById('v-cal').style.display=v==='cal'?'':'none';
+  document.getElementById('tab-list').classList.toggle('on',v==='list');
+  document.getElementById('tab-cal').classList.toggle('on',v==='cal');
+  render();
+}
+function setSort(col){
+  sortCol=col||null;sortDir=1;
+  const btn=document.getElementById('dirBtn');
+  btn.disabled=!sortCol;btn.textContent='↑';
+  render();
+}
+function toggleDir(){
+  sortDir=-sortDir;
+  document.getElementById('dirBtn').textContent=sortDir===1?'↑':'↓';
+  render();
+}
+
 function renderChips(){
   const counts={};apps.forEach(a=>{const s=a['Current Status']||'Not Started';counts[s]=(counts[s]||0)+1;});
   const el=document.getElementById('chips');
@@ -411,6 +525,11 @@ function renderChips(){
 function setFilter(s){statusFilter=s;render();}
 
 function render(){
+  if(view==='cal'){renderCal();return;}
+  renderList();
+}
+
+function renderList(){
   renderChips();
   const q=document.getElementById('search').value.trim().toLowerCase();
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
@@ -419,13 +538,26 @@ function render(){
     return ['Company Name','Programme/Role Name','Location','Notes for Progress']
       .some(f=>(a[f]||'').toLowerCase().includes(q));
   });
-  // upcoming deadlines first, no-deadline after, rejected last
-  list.sort((x,y)=>{
-    const rx=x.a['Current Status']==='Rejected'?1:0, ry=y.a['Current Status']==='Rejected'?1:0;
-    if(rx!==ry)return rx-ry;
-    const cx=x.a['Closing Date']||'9999', cy=y.a['Closing Date']||'9999';
-    return cx<cy?-1:cx>cy?1:0;
-  });
+  if(sortCol){
+    // desktop-tracker semantics: sort by the chosen date column, blanks always last
+    const key={open:'Opening Date',lyopen:'Last Year Opening Date',
+               closing:'Closing Date',applied:'Date Applied'}[sortCol];
+    list.sort((x,y)=>{
+      const av=x.a[key]||'', bv=y.a[key]||'';
+      if(!av&&!bv)return 0;
+      if(!av)return 1;
+      if(!bv)return -1;
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  }else{
+    // default: upcoming deadlines first, no-deadline after, rejected last
+    list.sort((x,y)=>{
+      const rx=x.a['Current Status']==='Rejected'?1:0, ry=y.a['Current Status']==='Rejected'?1:0;
+      if(rx!==ry)return rx-ry;
+      const cx=x.a['Closing Date']||'9999', cy=y.a['Closing Date']||'9999';
+      return cx<cy?-1:cx>cy?1:0;
+    });
+  }
   const el=document.getElementById('list');
   if(!list.length){el.innerHTML='<div class="empty">No applications match.</div>';return;}
   el.innerHTML=list.map(({a})=>{
@@ -447,6 +579,93 @@ function render(){
     </div>`;
   }).join('');
 }
+
+// ── Calendar (desktop parity: deadlines, applied, stages, opened, projected) ──
+const DOT={'Not Started':'#9ca3af','Applied':'#3b82f6','OA Stage':'#6366f1',
+           'Interviewing':'#f97316','Offer':'#10b981','Rejected':'#ef4444'};
+let calEvents={};
+function pad2(n){return String(n).padStart(2,'0');}
+function dstr(d){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
+
+function buildCalEvents(){
+  calEvents={};
+  const add=(ds,ev)=>{(calEvents[ds]=calEvents[ds]||[]).push(ev);};
+  apps.forEach(a=>{
+    if(a['Closing Date'])add(a['Closing Date'],{type:'deadline',a});
+    if(a['Date Applied'])add(a['Date Applied'],{type:'applied',a});
+    if(a['Opening Date'])add(a['Opening Date'],{type:'opened',a});
+    parseStages(a['Stage History']).forEach(e=>{
+      if(!e.d)return;
+      if(stageToStatus(e.s)==='Applied'&&a['Date Applied']===e.d)return;
+      add(e.d,{type:'stage',a,stage:e.s});
+    });
+    // projected opening = last year's date +1yr, only when this year's is unknown
+    const ly=a['Last Year Opening Date'];
+    if(ly&&!a['Opening Date']){
+      const d=new Date(ly+'T00:00:00');
+      add(dstr(new Date(d.getFullYear()+1,d.getMonth(),d.getDate())),{type:'proj',a});
+    }
+  });
+}
+function dotColor(ev){
+  if(ev.type==='deadline')return DOT[ev.a['Current Status']||'Not Started']||DOT['Not Started'];
+  if(ev.type==='applied')return '#818cf8';
+  if(ev.type==='stage')return '#a78bfa';
+  if(ev.type==='opened')return '#34d399';
+  return '';
+}
+
+function renderCal(){
+  buildCalEvents();
+  document.getElementById('calLabel').textContent=`${MONTHS[calMonth]} ${calYear}`;
+  const first=new Date(calYear,calMonth,1);
+  const last=new Date(calYear,calMonth+1,0);
+  const startOff=(first.getDay()+6)%7;
+  const cells=[];
+  for(let i=0;i<startOff;i++)cells.push({d:new Date(calYear,calMonth,1-startOff+i),cur:false});
+  for(let d=1;d<=last.getDate();d++)cells.push({d:new Date(calYear,calMonth,d),cur:true});
+  const rem=cells.length%7===0?0:7-(cells.length%7);
+  for(let d=1;d<=rem;d++)cells.push({d:new Date(calYear,calMonth+1,d),cur:false});
+
+  const todayStr=dstr(new Date());
+  if(!selDate)selDate=todayStr;
+  const MAXDOTS=4;
+  document.getElementById('calBody').innerHTML=cells.map(({d,cur})=>{
+    const ds=dstr(d);
+    const evs=calEvents[ds]||[];
+    const dots=evs.slice(0,MAXDOTS).map(ev=>
+      ev.type==='proj'?'<span class="dot hollow"></span>'
+      :`<span class="dot" style="background:${dotColor(ev)}"></span>`).join('');
+    const more=evs.length>MAXDOTS?`<div class="cal-more">+${evs.length-MAXDOTS}</div>`:'';
+    return `<div class="cal-cell${cur?'':' other'}${ds===todayStr?' today':''}${ds===selDate?' sel':''}"
+      onclick="selectDay('${ds}')"><div class="cal-num">${d.getDate()}</div><div class="dots">${dots}</div>${more}</div>`;
+  }).join('');
+  renderDayList();
+}
+function selectDay(ds){selDate=ds;renderCal();}
+
+function renderDayList(){
+  const evs=calEvents[selDate]||[];
+  document.getElementById('dayHead').textContent=
+    `${fmtShort(selDate)} — ${evs.length?evs.length+' event'+(evs.length>1?'s':''):'no events'}`;
+  const label=ev=>({deadline:'Deadline',applied:'✓ Applied',opened:'● Opened',
+                    proj:'~ Est. opens'})[ev.type]||esc(ev.stage||'Stage');
+  document.getElementById('dayList').innerHTML=evs.map(ev=>{
+    const a=ev.a, s=a['Current Status']||'Not Started';
+    return `<div class="card" onclick="openDetail('${esc(a['ID'])}')">
+      <div class="c-top">
+        <div style="flex:1;min-width:0">
+          <div class="c-co"><span class="ev-type">${label(ev)}</span>${esc(a['Company Name'])}</div>
+          <div class="c-role">${esc(a['Programme/Role Name'])}</div>
+        </div>
+        <span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function calPrev(){if(--calMonth<0){calMonth=11;calYear--;}renderCal();}
+function calNext(){if(++calMonth>11){calMonth=0;calYear++;}renderCal();}
+function calToday(){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();selDate=dstr(n);renderCal();}
 
 // ── Detail sheet ──────────────────────────────────────────────────────────────
 function findApp(id){return apps.find(a=>a['ID']===id);}
