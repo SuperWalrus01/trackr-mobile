@@ -66,6 +66,15 @@ header h1{font-size:1.05rem;flex:1}
 
 /* cards */
 #list{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+#nudgeList{padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+.nudge-card{border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px}
+.nudge-ic{font-size:1.25rem;flex:none}
+.nudge-main{flex:1;min-width:0}
+.nudge-co{font-size:.68rem;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nudge-head{font-size:.9rem;font-weight:700;margin:1px 0}
+.nudge-sub{font-size:.76rem;color:var(--mut)}
+.nudge-meta{font-size:.82rem;font-weight:800;flex:none}
+.nbadge{display:none;background:var(--danger);color:#fff;border-radius:9px;font-size:.66rem;font-weight:700;padding:1px 6px;margin-left:5px;vertical-align:1px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
   -webkit-tap-highlight-color:transparent}
 .card:active{opacity:.75}
@@ -241,6 +250,7 @@ header h1{font-size:1.05rem;flex:1}
     <button class="tab on" id="tab-list" onclick="setView('list')">List</button>
     <button class="tab" id="tab-cal" onclick="setView('cal')">Calendar</button>
     <button class="tab" id="tab-board" onclick="setView('board')">Board</button>
+    <button class="tab" id="tab-nudge" onclick="setView('nudge')">Nudges<span class="nbadge" id="nudgeBadge"></span></button>
   </div>
 
   <!-- LIST VIEW -->
@@ -302,6 +312,11 @@ header h1{font-size:1.05rem;flex:1}
   <!-- BOARD VIEW -->
   <div id="v-board" style="display:none">
     <div class="board" id="boardCols"></div>
+  </div>
+
+  <!-- NUDGES VIEW -->
+  <div id="v-nudge" style="display:none">
+    <div id="nudgeList"></div>
   </div>
 
   <button id="fab" onclick="openAdd()">+</button>
@@ -579,9 +594,11 @@ function setView(v){
   document.getElementById('v-list').style.display=v==='list'?'':'none';
   document.getElementById('v-cal').style.display=v==='cal'?'':'none';
   document.getElementById('v-board').style.display=v==='board'?'':'none';
+  document.getElementById('v-nudge').style.display=v==='nudge'?'':'none';
   document.getElementById('tab-list').classList.toggle('on',v==='list');
   document.getElementById('tab-cal').classList.toggle('on',v==='cal');
   document.getElementById('tab-board').classList.toggle('on',v==='board');
+  document.getElementById('tab-nudge').classList.toggle('on',v==='nudge');
   render();
 }
 function setSort(col){
@@ -610,9 +627,101 @@ function setFilter(s){statusFilter=s;render();}
 function toggleOpenFilter(){openOnly=!openOnly;render();}
 
 function render(){
+  renderNudgeBadge();
   if(view==='cal'){renderCal();return;}
   if(view==='board'){renderBoard();return;}
+  if(view==='nudge'){renderNudges();return;}
   renderList();
+}
+
+// ── Nudges (same rules as the desktop tracker's Nudges tab) ───────────────────
+const NUDGE_STALL_DAYS=10, NUDGE_STAGE_DAYS=5;
+const NUDGE_SEV=['#ef4444','#f59e0b','#818cf8'];
+
+function computeNudges(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const daysAgo=ds=>ds?Math.round((today-new Date(ds+'T00:00:00'))/86400000):null;
+  const nudges=[];
+  apps.forEach(a=>{
+    const st=a['Current Status']||'Not Started';
+    if(st==='Rejected'||st==='Offer')return;
+    const closingIn=a['Closing Date']?-daysAgo(a['Closing Date']):null;
+    const openNow=a['Applications Open']==='Yes'||
+      (a['Opening Date']&&daysAgo(a['Opening Date'])>=0&&(closingIn==null||closingIn>=0));
+    const clr=a['Cover Letter Required'];
+    const needDraft=(clr==='Yes'||clr==='Optional')&&a['Draft Made']!=='Yes';
+
+    if(st==='Not Started'&&openNow){
+      const rolling=a['Rolling Deadlines']==='Yes';
+      const bits=[];
+      if(closingIn!=null&&closingIn>=0)bits.push(closingIn===0?'closes today':`closes in ${closingIn}d`);
+      if(rolling)bits.push('rolling — early applicants win');
+      if(needDraft)bits.push('no CL draft yet');
+      nudges.push({id:a['ID'],sev:(rolling||(closingIn!=null&&closingIn<=7))?0:1,
+        ic:'🚀',head:'Open — apply',sub:bits.join(' · ')||'applications are open',
+        meta:closingIn!=null&&closingIn>=0?`${closingIn}d`:'open',co:a});
+      return;
+    }
+
+    const stages=parseStages(a['Stage History']).filter(e=>e.d).sort((x,y)=>x.d<y.d?-1:1);
+    const lastAct=stages.length?stages[stages.length-1].d:a['Date Applied'];
+    const idle=daysAgo(lastAct);
+
+    if(st==='Applied'&&idle!=null&&idle>=NUDGE_STALL_DAYS){
+      nudges.push({id:a['ID'],sev:1,ic:'🕰',head:`No movement for ${idle}d`,
+        sub:`applied ${daysAgo(a['Date Applied'])??idle}d ago — check the portal, log any stage`,
+        meta:`${idle}d`,co:a});
+    }
+    if((st==='OA Stage'||st==='Interviewing')&&idle!=null&&idle>=NUDGE_STAGE_DAYS){
+      nudges.push({id:a['ID'],sev:0,ic:st==='OA Stage'?'🧪':'🎤',
+        head:`${st} — idle for ${idle}d`,
+        sub:st==='OA Stage'?'complete the OA before it expires':'prep / follow up on the interview',
+        meta:`${idle}d`,co:a});
+    }
+    if(st==='Not Started'&&needDraft){
+      let when=null;
+      if(a['Opening Date']&&daysAgo(a['Opening Date'])<0)when=-daysAgo(a['Opening Date']);
+      else if(!a['Opening Date']&&a['Last Year Opening Date']){
+        const d0=new Date(a['Last Year Opening Date']+'T00:00:00');
+        const proj=new Date(d0.getFullYear()+1,d0.getMonth(),d0.getDate());
+        const dd=Math.round((proj-today)/86400000);
+        if(dd>=-7)when=Math.max(dd,0);
+      }
+      if(when!=null&&when<=21){
+        nudges.push({id:a['ID'],sev:2,ic:'📝',head:'Cover letter has no draft',
+          sub:when===0?'expected to open any day now':`likely needed in ~${when}d`,
+          meta:when===0?'soon':`~${when}d`,co:a});
+      }
+    }
+  });
+  nudges.sort((x,y)=>x.sev-y.sev);
+  return nudges;
+}
+
+function renderNudgeBadge(){
+  const n=computeNudges().filter(x=>x.sev<=1).length;
+  const b=document.getElementById('nudgeBadge');
+  b.style.display=n?'':'none';
+  b.textContent=n;
+}
+
+function renderNudges(){
+  const el=document.getElementById('nudgeList');
+  const nudges=computeNudges();
+  if(!nudges.length){
+    el.innerHTML='<div class="empty">✅ No nudges — nothing stalled, nothing pending, no drafts missing.</div>';
+    return;
+  }
+  el.innerHTML=nudges.map(n=>`
+    <div class="card nudge-card" style="border-left-color:${NUDGE_SEV[n.sev]}" onclick="openDetail('${esc(n.id)}')">
+      <div class="nudge-ic">${n.ic}</div>
+      <div class="nudge-main">
+        <div class="nudge-co">${esc(n.co['Company Name'])} — ${esc(n.co['Programme/Role Name']||'')}</div>
+        <div class="nudge-head">${esc(n.head)}</div>
+        <div class="nudge-sub">${esc(n.sub)}</div>
+      </div>
+      <div class="nudge-meta" style="color:${NUDGE_SEV[n.sev]}">${esc(n.meta)}</div>
+    </div>`).join('');
 }
 
 function daysLeft(ds){
