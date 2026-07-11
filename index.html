@@ -75,6 +75,10 @@ header h1{font-size:1.05rem;flex:1}
 .nudge-sub{font-size:.76rem;color:var(--mut)}
 .nudge-meta{font-size:.82rem;font-weight:800;flex:none}
 .nbadge{display:none;background:var(--danger);color:#fff;border-radius:9px;font-size:.66rem;font-weight:700;padding:1px 6px;margin-left:5px;vertical-align:1px}
+.wait-chip{display:inline-flex;align-items:center;gap:3px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:20px;font-size:.68rem;font-weight:600;padding:1px 7px;white-space:nowrap}
+@media(prefers-color-scheme:dark){.wait-chip{background:#3a2f12;color:#fcd34d;border-color:#5c4a1a}}
+.wait-toggle{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink)}
+.wait-toggle input{width:18px;height:18px;flex:none;accent-color:#d97706}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
   -webkit-tap-highlight-color:transparent}
 .card:active{opacity:.75}
@@ -358,6 +362,7 @@ header h1{font-size:1.05rem;flex:1}
       <select id="e_appopen"><option value="">Not yet</option><option value="Yes">Yes — open now</option></select>
       <label>Closing Date</label><input id="e_close" type="date">
       <label>Date Applied</label><input id="e_applied" type="date">
+      <label class="wait-toggle"><input type="checkbox" id="e_awaiting"> ⏳ Awaiting response — ball's in their court (shows in Nudges with the day count; keeps the stage)</label>
       <label>Stage History</label>
       <div id="e_stages"></div>
       <button class="hbtn" style="margin-top:2px" onclick="addStageRow()">+ Add Stage</button>
@@ -395,7 +400,7 @@ const FIELDS = [
   'Link to Cover Letter','CV/Resume Version','Expected Process Stages',
   'Testing/Prep Info','Current Status','Date Applied','Notes for Progress','Cover Letter Required',
   'Research Link','Acceptance Rate','Conversion Rate','Applications Open','Cover Letter Draft','Draft Made',
-  'Stage History','Industry'
+  'Stage History','Industry','Awaiting Response'
 ];
 const STATUSES = ['Not Started','Applied','OA Stage','Interviewing','Offer','Rejected'];
 const STATUS_CLS = {'Not Started':'s-not','Applied':'s-app','OA Stage':'s-oa',
@@ -635,7 +640,7 @@ function render(){
 }
 
 // ── Nudges (same rules as the desktop tracker's Nudges tab) ───────────────────
-const NUDGE_STALL_DAYS=10, NUDGE_STAGE_DAYS=5;
+const NUDGE_STALL_DAYS=10, NUDGE_STAGE_DAYS=5, WAIT_CHASE_DAYS=21;
 const NUDGE_SEV=['#ef4444','#f59e0b','#818cf8'];
 
 function computeNudges(){
@@ -665,18 +670,31 @@ function computeNudges(){
 
     const stages=parseStages(a['Stage History']).filter(e=>e.d).sort((x,y)=>x.d<y.d?-1:1);
     const lastAct=stages.length?stages[stages.length-1].d:a['Date Applied'];
+    const lastStage=stages.length?stages[stages.length-1].s:'applied';
     const idle=daysAgo(lastAct);
 
-    if(st==='Applied'&&idle!=null&&idle>=NUDGE_STALL_DAYS){
-      nudges.push({id:a['ID'],sev:1,ic:'🕰',head:`No movement for ${idle}d`,
-        sub:`applied ${daysAgo(a['Date Applied'])??idle}d ago — check the portal, log any stage`,
-        meta:`${idle}d`,co:a});
-    }
-    if((st==='OA Stage'||st==='Interviewing')&&idle!=null&&idle>=NUDGE_STAGE_DAYS){
-      nudges.push({id:a['ID'],sev:0,ic:st==='OA Stage'?'🧪':'🎤',
-        head:`${st} — idle for ${idle}d`,
-        sub:st==='OA Stage'?'complete the OA before it expires':'prep / follow up on the interview',
-        meta:`${idle}d`,co:a});
+    // "Awaiting response" — Keenan's done his part. Show a passive "waiting"
+    // entry with the day count (which portals to follow up on); escalates to
+    // amber once it's worth chasing (WAIT_CHASE_DAYS).
+    const waiting=a['Awaiting Response']==='Yes';
+    if(waiting&&(st==='Applied'||st==='OA Stage'||st==='Interviewing')){
+      const chase=idle!=null&&idle>=WAIT_CHASE_DAYS;
+      nudges.push({id:a['ID'],sev:chase?1:2,ic:'⏳',
+        head:idle!=null?`Waiting ${idle}d for a reply`:'Waiting for a reply',
+        sub:`${st}${lastStage&&lastStage.toLowerCase()!=='applied'?' · after '+lastStage:''}`+(lastAct?` · since ${fmtShort(lastAct)}`:'')+(chase?' — gone quiet, follow up':''),
+        meta:idle!=null?`${idle}d`:'—',co:a});
+    }else{
+      if(st==='Applied'&&idle!=null&&idle>=NUDGE_STALL_DAYS){
+        nudges.push({id:a['ID'],sev:1,ic:'🕰',head:`No movement for ${idle}d`,
+          sub:`applied ${daysAgo(a['Date Applied'])??idle}d ago — check the portal, log any stage`,
+          meta:`${idle}d`,co:a});
+      }
+      if((st==='OA Stage'||st==='Interviewing')&&idle!=null&&idle>=NUDGE_STAGE_DAYS){
+        nudges.push({id:a['ID'],sev:0,ic:st==='OA Stage'?'🧪':'🎤',
+          head:`${st} — idle for ${idle}d`,
+          sub:st==='OA Stage'?'complete the OA before it expires':'prep / follow up on the interview',
+          meta:`${idle}d`,co:a});
+      }
     }
     if(st==='Not Started'&&needDraft){
       let when=null;
@@ -797,6 +815,7 @@ function renderList(){
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:none">
           <span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>
+          ${a['Awaiting Response']==='Yes'?'<span class="wait-chip">⏳ waiting</span>':''}
           ${a['Industry']?`<span class="ind-tag ind-${esc(a['Industry']).toLowerCase()}">${esc(a['Industry'])}</span>`:''}
         </div>
       </div>
@@ -962,7 +981,7 @@ function openDetail(id){
   const rows=[];
   const s=a['Current Status']||'Not Started';
   rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
-  rows.push(`<div class="drow"><div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span></div></div>`);
+  rows.push(`<div class="drow"><div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>${a['Awaiting Response']==='Yes'?' <span class="wait-chip">⏳ waiting</span>':''}</div></div>`);
   const dl=[
     ['Industry','Industry'],
     ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
@@ -1011,6 +1030,7 @@ function openEdit(id){
   document.getElementById('e_appopen').value=a['Applications Open']==='Yes'?'Yes':'';
   document.getElementById('e_close').value=a['Closing Date']||'';
   document.getElementById('e_applied').value=a['Date Applied']||'';
+  document.getElementById('e_awaiting').checked=a['Awaiting Response']==='Yes';
   document.getElementById('e_note').value='';
   document.getElementById('e_stages').innerHTML='';
   parseStages(a['Stage History']).forEach(e=>addStageRow(e.s,e.d));
@@ -1027,6 +1047,7 @@ function openAdd(){
   document.getElementById('e_appopen').value='';
   document.getElementById('e_close').value='';
   document.getElementById('e_applied').value='';
+  document.getElementById('e_awaiting').checked=false;
   document.getElementById('e_note').value='';
   document.getElementById('e_stages').innerHTML='';
   document.getElementById('ovEdit').classList.add('show');
@@ -1038,6 +1059,7 @@ async function saveEdit(){
   const appopen=document.getElementById('e_appopen').value;
   const close=document.getElementById('e_close').value;
   const applied=document.getElementById('e_applied').value;
+  const awaiting=document.getElementById('e_awaiting').checked?'Yes':'';
   const note=document.getElementById('e_note').value.trim();
   const stages=serializeStages(collectStages());
   let msg,apply;
@@ -1053,6 +1075,7 @@ async function saveEdit(){
     a['Industry']=industry;
     a['Current Status']=status;a['Applications Open']=appopen;
     a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
+    a['Awaiting Response']=awaiting;
     if(note)a['Notes for Progress']=`[${today()}] ${note}`;
     msg=`mobile: add ${co} — ${role}`;
     apply=list=>list.push(a);
@@ -1066,6 +1089,7 @@ async function saveEdit(){
       a['Industry']=industry;
       a['Current Status']=status;a['Applications Open']=appopen;
       a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
+      a['Awaiting Response']=awaiting;
       if(note)a['Notes for Progress']=(a['Notes for Progress']?a['Notes for Progress']+'\n':'')+`[${today()}] ${note}`;
     };
   }
