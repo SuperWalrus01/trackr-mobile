@@ -124,7 +124,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
 /* cards */
 #list{padding:8px 14px;display:flex;flex-direction:column;gap:9px}
-#list>.card{content-visibility:auto;contain-intrinsic-size:auto 104px}
+#list>.card:not(.has-topper){content-visibility:auto;contain-intrinsic-size:auto 104px}
 #nudgeList{padding:8px 14px;display:flex;flex-direction:column;gap:9px}
 #graveList{padding:8px 14px}
 .nudge-card{border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px}
@@ -140,7 +140,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 @media(prefers-color-scheme:dark){.wait-chip{background:#3a2f12;color:#fcd34d;border-color:#5c4a1a}}
 .wait-toggle{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink)}
 .wait-toggle input{width:18px;height:18px;flex:none;accent-color:#d97706}
-.card{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 15px;
+.card{position:relative;background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:13px 15px;
   box-shadow:var(--shadow-sm);-webkit-tap-highlight-color:transparent}
 .card:active{transform:scale(.985);opacity:.9}
 .c-top{display:flex;align-items:flex-start;gap:8px}
@@ -168,10 +168,19 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .empty{text-align:center;color:var(--mut);padding:40px 24px;font-size:.9rem;line-height:1.7}
 .hero-img{display:block;margin:0 auto 14px;height:130px;width:auto}
 .grave-hero{display:block;margin:10px auto 4px;height:104px;filter:grayscale(.25)}
-.trail-foot{display:flex;align-items:center;gap:14px;margin:20px 0 2px -14px}
-.trail-foot img{height:116px;flex:none}
-.tf-head{font-family:var(--font-round);font-weight:800;font-size:1rem}
-.tf-sub{font-size:.78rem;color:var(--mut);margin-top:2px}
+/* "Keep climbing" hero at the top of the list */
+.trail-head{display:flex;align-items:center;gap:16px;margin:6px 14px 0 0}
+.trail-head img{height:108px;flex:none;margin-top:-10px}
+.th-head{font-family:var(--font-round);font-weight:800;font-size:1.1rem;letter-spacing:-.01em}
+.th-sub{font-size:.8rem;color:var(--mut);margin-top:2px}
+
+/* mini characters standing on special cards */
+.card-topper{position:absolute;top:-31px;right:16px;height:34px;pointer-events:none}
+.card.has-topper{margin-top:24px}
+
+/* the waiting figure sits on the + button */
+#fabChar{position:fixed;right:25px;bottom:calc(16px + 52px + env(safe-area-inset-bottom));
+  height:44px;z-index:20;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
 .wait-hero{float:right;height:74px;margin:-4px 0 0 10px}
 .drow-status{overflow:hidden}
 
@@ -358,6 +367,13 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
   <!-- LIST VIEW -->
   <div id="v-list">
+    <div class="trail-head">
+      <img src="assets/char-climbing.png" alt="">
+      <div>
+        <div class="th-head">Keep climbing</div>
+        <div class="th-sub"><span id="inPlayCount">–</span> still in play</div>
+      </div>
+    </div>
     <div class="soon" id="soonBar" style="display:none"></div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search companies, roles, locations…">
@@ -428,6 +444,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
   </div>
 
   <button id="fab" onclick="openAdd()">+</button>
+  <img id="fabChar" src="assets/char-waiting.png" alt="" aria-hidden="true">
 </div>
 
 <!-- DETAIL SHEET -->
@@ -941,9 +958,11 @@ function renderList(){
   }
   const el=document.getElementById('list');
   if(!list.length){el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No applications match.</div>';return;}
-  const inPlay=apps.filter(a=>!['Rejected','Offer'].includes(a['Current Status']||'Not Started')).length;
+  document.getElementById('inPlayCount').textContent=
+    apps.filter(a=>!['Rejected','Offer'].includes(a['Current Status']||'Not Started')).length;
   el.innerHTML=list.map(({a})=>{
     const s=a['Current Status']||'Not Started';
+    const topper=s==='Offer'?'char-celebrating.png':a['Awaiting Response']==='Yes'?'char-waiting.png':'';
     const open=a['Applications Open']==='Yes'?'<span class="open-dot">●</span> Open now':'';
     const d=daysLeft(a['Closing Date']);
     const cnt=d===null||d<0||d>14||s!=='Not Started'?''
@@ -952,7 +971,8 @@ function renderList(){
     const applied=a['Date Applied']?`Applied <b>${fmtShort(a['Date Applied'])}</b>`:'';
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
     const meta=[open,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
-    return `<div class="card" onclick="openDetail('${esc(a['ID'])}')">
+    return `<div class="card${topper?' has-topper':''}" onclick="openDetail('${esc(a['ID'])}')">
+      ${topper?`<img class="card-topper" src="assets/${topper}" alt="">`:''}
       <div class="c-top">
         <div style="flex:1;min-width:0">
           <div class="c-co">${esc(a['Company Name'])}</div>
@@ -966,9 +986,7 @@ function renderList(){
       </div>
       ${meta?`<div class="c-meta">${meta}</div>`:''}
     </div>`;
-  }).join('')
-  +`<div class="trail-foot"><img src="assets/char-climbing.png" alt="">
-     <div><div class="tf-head">Keep climbing</div><div class="tf-sub">${inPlay} still in play</div></div></div>`;
+  }).join('');
 }
 
 // ── Calendar (desktop parity: deadlines, applied, stages, opened, projected) ──
