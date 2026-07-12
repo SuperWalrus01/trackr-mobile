@@ -99,6 +99,11 @@ header h1{font-size:1.05rem;flex:1}
 .ind-tag{font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:999px;white-space:nowrap}
 .ind-finance{background:var(--s-off);color:var(--s-off-ink)}
 .ind-tech{background:var(--s-app);color:var(--s-app-ink)}
+.gbadge{display:inline-block;background:var(--mut);color:#fff;border-radius:9px;font-size:.66rem;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:1px}
+.gbadge:empty{display:none}
+.grave-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin:6px 2px 12px}
+.grave-card{filter:grayscale(.4);margin-bottom:10px}
+.grave-life{color:var(--danger);font-style:italic}
 .empty{text-align:center;color:var(--mut);padding:48px 20px;font-size:.9rem}
 
 /* fab */
@@ -255,6 +260,7 @@ header h1{font-size:1.05rem;flex:1}
     <button class="tab" id="tab-cal" onclick="setView('cal')">Calendar</button>
     <button class="tab" id="tab-board" onclick="setView('board')">Board</button>
     <button class="tab" id="tab-nudge" onclick="setView('nudge')">Nudges<span class="nbadge" id="nudgeBadge"></span></button>
+    <button class="tab" id="tab-grave" onclick="setView('grave')">🪦<span class="gbadge" id="graveCount"></span></button>
   </div>
 
   <!-- LIST VIEW -->
@@ -321,6 +327,11 @@ header h1{font-size:1.05rem;flex:1}
   <!-- NUDGES VIEW -->
   <div id="v-nudge" style="display:none">
     <div id="nudgeList"></div>
+  </div>
+
+  <!-- GRAVEYARD VIEW -->
+  <div id="v-grave" style="display:none">
+    <div id="graveList"></div>
   </div>
 
   <button id="fab" onclick="openAdd()">+</button>
@@ -600,10 +611,12 @@ function setView(v){
   document.getElementById('v-cal').style.display=v==='cal'?'':'none';
   document.getElementById('v-board').style.display=v==='board'?'':'none';
   document.getElementById('v-nudge').style.display=v==='nudge'?'':'none';
+  document.getElementById('v-grave').style.display=v==='grave'?'':'none';
   document.getElementById('tab-list').classList.toggle('on',v==='list');
   document.getElementById('tab-cal').classList.toggle('on',v==='cal');
   document.getElementById('tab-board').classList.toggle('on',v==='board');
   document.getElementById('tab-nudge').classList.toggle('on',v==='nudge');
+  document.getElementById('tab-grave').classList.toggle('on',v==='grave');
   render();
 }
 function setSort(col){
@@ -632,11 +645,45 @@ function setFilter(s){statusFilter=s;render();}
 function toggleOpenFilter(){openOnly=!openOnly;render();}
 
 function render(){
-  renderNudgeBadge();
+  renderNudgeBadge();renderGraveBadge();
   if(view==='cal'){renderCal();return;}
   if(view==='board'){renderBoard();return;}
   if(view==='nudge'){renderNudges();return;}
+  if(view==='grave'){renderGraveyard();return;}
   renderList();
+}
+
+// ── Graveyard: rejected applications, at rest (they also stay in the board's
+// Rejected column and the list). ──────────────────────────────────────────────
+function rejectionDate(a){
+  const rej=parseStages(a['Stage History']).filter(e=>e.d&&stageToStatus(e.s)==='Rejected')
+    .sort((x,y)=>x.d<y.d?-1:1);
+  return rej.length?rej[rej.length-1].d:'';
+}
+function renderGraveBadge(){
+  const n=apps.filter(a=>(a['Current Status']||'')==='Rejected').length;
+  document.getElementById('graveCount').textContent=n||'';
+}
+function renderGraveyard(){
+  const el=document.getElementById('graveList');
+  const dead=apps.filter(a=>(a['Current Status']||'')==='Rejected');
+  if(!dead.length){el.innerHTML=`<div class="empty">🪦<br>The graveyard is empty — no rejections yet.</div>`;return;}
+  dead.sort((x,y)=>(rejectionDate(y)||'').localeCompare(rejectionDate(x)||''));
+  el.innerHTML=`<div class="grave-title">🪦 ${dead.length} laid to rest</div>`+dead.map(a=>{
+    const rej=rejectionDate(a),applied=a['Date Applied'];
+    let life='';
+    if(applied&&rej){
+      const d=Math.round((new Date(rej+'T00:00:00')-new Date(applied+'T00:00:00'))/86400000);
+      if(d>=0)life=`survived ${d===0?'<1 day':d+(d===1?' day':' days')}`;
+    }
+    const ind=a['Industry']?`<span class="ind-tag ind-${esc(a['Industry']).toLowerCase()}">${esc(a['Industry'])}</span>`:'';
+    const dates=[applied?`applied ${fmtShort(applied)}`:'',rej?`✝ ${fmtShort(rej)}`:''].filter(Boolean).join(' · ');
+    return `<div class="card grave-card" onclick="openDetail('${esc(a['ID'])}')">
+      <div class="c-co">${esc(a['Company Name'])} ${ind}</div>
+      <div class="c-role">${esc(a['Programme/Role Name']||'')}</div>
+      <div class="c-meta">${dates}${life?` · <span class="grave-life">${life}</span>`:''}</div>
+    </div>`;
+  }).join('');
 }
 
 // ── Nudges (same rules as the desktop tracker's Nudges tab) ───────────────────
