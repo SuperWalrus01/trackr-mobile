@@ -168,11 +168,15 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .empty{text-align:center;color:var(--mut);padding:40px 24px;font-size:.9rem;line-height:1.7}
 .hero-img{display:block;margin:0 auto 14px;height:130px;width:auto}
 .grave-hero{display:block;margin:10px auto 4px;height:104px;filter:grayscale(.25)}
-/* "Keep climbing" hero at the top of the list */
+/* "Keep climbing" hero (bottom of the calendar) */
 .trail-head{display:flex;align-items:center;gap:16px;margin:6px 14px 0 0}
 .trail-head img{height:108px;flex:none;margin-top:-10px}
 .th-head{font-family:var(--font-round);font-weight:800;font-size:1.1rem;letter-spacing:-.01em}
 .th-sub{font-size:.8rem;color:var(--mut);margin-top:2px}
+.trail-cal{margin:8px 14px 96px 0}
+/* forward-facing greeter atop the nudges list */
+.nudge-hero{margin:0}
+.nudge-hero img{height:90px;margin:0 0 0 8px}
 
 /* mini characters standing on special cards */
 .card-topper{position:absolute;top:-31px;right:16px;height:34px;pointer-events:none}
@@ -281,7 +285,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .legend{display:flex;flex-wrap:wrap;gap:5px 12px;padding:10px 16px 2px;font-size:.68rem;color:var(--mut)}
 .leg-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
 .day-head{font-weight:700;font-size:.88rem;padding:14px 16px 2px}
-#dayList{padding:6px 14px 90px;display:flex;flex-direction:column;gap:8px}
+#dayList{padding:6px 14px 10px;display:flex;flex-direction:column;gap:8px}
 .ev-type{font-size:.66rem;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:var(--mut)}
 
 /* board */
@@ -367,13 +371,6 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
   <!-- LIST VIEW -->
   <div id="v-list">
-    <div class="trail-head">
-      <img src="assets/char-climbing.png" alt="">
-      <div>
-        <div class="th-head">Keep climbing</div>
-        <div class="th-sub"><span id="inPlayCount">–</span> still in play</div>
-      </div>
-    </div>
     <div class="soon" id="soonBar" style="display:none"></div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search companies, roles, locations…">
@@ -426,6 +423,13 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
     </div>
     <div class="day-head" id="dayHead"></div>
     <div id="dayList"></div>
+    <div class="trail-head trail-cal">
+      <img src="assets/char-climbing.png" alt="">
+      <div>
+        <div class="th-head">Keep climbing</div>
+        <div class="th-sub"><span id="inPlayCount">–</span> still in play</div>
+      </div>
+    </div>
   </div>
 
   <!-- BOARD VIEW -->
@@ -891,7 +895,10 @@ function renderNudges(){
     el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-celebrating.png" alt="">All clear — nothing stalled, nothing pending, no drafts missing.</div>';
     return;
   }
-  el.innerHTML=nudges.map(n=>`
+  el.innerHTML=`<div class="trail-head nudge-hero"><img src="assets/char-forward.png" alt="">
+    <div><div class="th-head">Trail check</div>
+    <div class="th-sub">${nudges.length} thing${nudges.length===1?'':'s'} worth a look</div></div></div>`
+  +nudges.map(n=>`
     <div class="card nudge-card" style="border-left-color:${NUDGE_SEV[n.sev]}" onclick="openDetail('${esc(n.id)}')">
       <div class="nudge-ic">${n.ic}</div>
       <div class="nudge-main">
@@ -958,8 +965,6 @@ function renderList(){
   }
   const el=document.getElementById('list');
   if(!list.length){el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No applications match.</div>';return;}
-  document.getElementById('inPlayCount').textContent=
-    apps.filter(a=>!['Rejected','Offer'].includes(a['Current Status']||'Not Started')).length;
   el.innerHTML=list.map(({a})=>{
     const s=a['Current Status']||'Not Started';
     const topper=s==='Offer'?'char-celebrating.png':a['Awaiting Response']==='Yes'?'char-waiting.png':'';
@@ -1026,6 +1031,8 @@ function dotColor(ev){
 
 function renderCal(){
   buildCalEvents();
+  document.getElementById('inPlayCount').textContent=
+    apps.filter(a=>!['Rejected','Offer'].includes(a['Current Status']||'Not Started')).length;
   document.getElementById('calLabel').textContent=`${MONTHS[calMonth]} ${calYear}`;
   const first=new Date(calYear,calMonth,1);
   const last=new Date(calYear,calMonth+1,0);
