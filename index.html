@@ -66,12 +66,12 @@ textarea{min-height:88px;resize:vertical}
 label{display:block;font-size:.78rem;font-weight:600;color:var(--mut);margin:12px 0 4px}
 a{color:var(--acc)}
 .card,.b-card,.mv-btn,.hbtn,.chip,.tab,.btn,.soon-chip,.linkbtn,#fab{
-  transition:transform .13s ease,box-shadow .13s ease,opacity .13s ease,background-color .13s ease,color .13s ease}
+  transition:transform .13s ease,opacity .13s ease}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 
 /* header */
 header{position:sticky;top:0;z-index:20;background:var(--glass);
-  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+  -webkit-backdrop-filter:saturate(150%) blur(12px);backdrop-filter:saturate(150%) blur(12px);
   padding:calc(10px + env(safe-area-inset-top)) 14px 9px;display:flex;align-items:center;gap:10px;
   border-bottom:1px solid var(--line-soft)}
 header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800;letter-spacing:-.02em}
@@ -85,7 +85,8 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
 /* controls */
 .controls{padding:10px 14px 4px;display:flex;flex-direction:column;gap:8px}
-.chips{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.chips{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;
+  overscroll-behavior-x:contain}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--mut);
   border-radius:999px;padding:7px 13px;font-size:.78rem;font-weight:600;white-space:nowrap}
@@ -99,6 +100,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
 /* cards */
 #list{padding:8px 14px;display:flex;flex-direction:column;gap:9px}
+#list>.card{content-visibility:auto;contain-intrinsic-size:auto 104px}
 #nudgeList{padding:8px 14px;display:flex;flex-direction:column;gap:9px}
 #graveList{padding:8px 14px}
 .nudge-card{border-left:4px solid #f59e0b;display:flex;align-items:center;gap:10px}
@@ -152,7 +154,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
   -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .overlay.show{display:flex}
 .sheet{background:var(--bg);width:100%;max-height:92vh;border-radius:24px 24px 0 0;
-  display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.28)}
+  display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.28);will-change:transform}
 .overlay.show .sheet{animation:rise .32s cubic-bezier(.32,.72,.25,1)}
 @keyframes rise{from{transform:translateY(48px);opacity:.5}to{transform:translateY(0);opacity:1}}
 .sheet::before{content:"";flex:none;width:38px;height:5px;border-radius:3px;background:var(--line);
@@ -243,7 +245,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
 /* board */
 .board{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
-  padding:10px 14px 100px}
+  padding:10px 14px 100px;overscroll-behavior-x:contain}
 .b-col{flex:0 0 80%;max-width:320px;scroll-snap-align:center;background:var(--card);
   border:1px solid var(--line-soft);border-radius:18px;display:flex;flex-direction:column;
   max-height:calc(100vh - 210px);box-shadow:var(--shadow-sm)}
@@ -251,7 +253,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
   font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-family:var(--font-round)}
 .b-dot{width:9px;height:9px;border-radius:50%;flex:none}
 .b-count{margin-left:auto;background:var(--seg);border-radius:10px;padding:1px 8px;font-size:.7rem;color:var(--mut)}
-.b-cards{padding:8px;display:flex;flex-direction:column;gap:7px;overflow-y:auto}
+.b-cards{padding:8px;display:flex;flex-direction:column;gap:7px;overflow-y:auto;overscroll-behavior:contain}
 .b-card{background:var(--bg);border:1px solid var(--line-soft);border-radius:12px;padding:10px 12px;
   -webkit-tap-highlight-color:transparent}
 .b-card:active{transform:scale(.98);opacity:.85}
@@ -634,12 +636,15 @@ async function loadData(manual){
   setDot('busy');
   try{
     const {text,sha}=await ghFetchFile();
-    apps=csvToApps(text);fileSha=sha;
+    fileSha=sha;
+    const prev=localStorage.getItem('tm_cache');
     try{
       localStorage.setItem('tm_cache',text);
       localStorage.setItem('tm_cacheAt',Date.now());
     }catch(e){/* storage full — offline copy just won't refresh */}
-    setDot('ok');render();
+    // skip the re-render (and its scroll jump) when nothing actually changed
+    if(text!==prev||!apps.length){apps=csvToApps(text);render();}
+    setDot('ok');
     if(manual)toast('Up to date — '+apps.length+' applications');
   }catch(e){
     setDot('err');
@@ -982,11 +987,19 @@ function renderCal(){
       :`<span class="dot" style="background:${dotColor(ev)}"></span>`).join('');
     const more=evs.length>MAXDOTS?`<div class="cal-more">+${evs.length-MAXDOTS}</div>`:'';
     return `<div class="cal-cell${cur?'':' other'}${ds===todayStr?' today':''}${ds===selDate?' sel':''}"
-      onclick="selectDay('${ds}')"><div class="cal-num">${d.getDate()}</div><div class="dots">${dots}</div>${more}</div>`;
+      data-ds="${ds}" onclick="selectDay('${ds}')"><div class="cal-num">${d.getDate()}</div><div class="dots">${dots}</div>${more}</div>`;
   }).join('');
   renderDayList();
 }
-function selectDay(ds){selDate=ds;renderCal();}
+function selectDay(ds){
+  // toggle the highlight in place — no full grid rebuild on every tap
+  selDate=ds;
+  const body=document.getElementById('calBody');
+  body.querySelectorAll('.sel').forEach(c=>c.classList.remove('sel'));
+  const cell=body.querySelector(`[data-ds="${ds}"]`);
+  if(cell)cell.classList.add('sel');
+  renderDayList();
+}
 
 function renderDayList(){
   const evs=calEvents[selDate]||[];
@@ -1241,7 +1254,10 @@ function startApp(){
   loadData(false);
 }
 
-document.getElementById('search').addEventListener('input',render);
+let searchTimer;
+document.getElementById('search').addEventListener('input',()=>{
+  clearTimeout(searchTimer);searchTimer=setTimeout(render,120);
+});
 if(cfg().token)startApp();else showSetup();
 </script>
 </body>
