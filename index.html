@@ -5,48 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0f172a">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232563eb'/><circle cx='50' cy='50' r='34' fill='none' stroke='white' stroke-opacity='.3' stroke-width='6'/><path d='M32 52l14 14 24-28' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<meta name="theme-color" content="#0c1410">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23f0b429'/><path d='M24 76V58h17V41h17V24h18v52z' fill='%232e4632'/></svg>">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=4">
 <title>Trackr Mobile</title>
 <style>
 :root{
   color-scheme:light dark;
-  --bg:#f5f7fc; --card:#ffffff; --ink:#0f172a; --mut:#64748b;
-  --line:#e2e8f0; --line-soft:#eaeef6;
-  --seg:#e9edf6; --seg-on:#ffffff;
-  --glass:rgba(245,247,252,.82);
-  --glow:rgba(37,99,235,.08);
-  --acc:#2563eb; --acc-ink:#ffffff;
-  --acc-grad:linear-gradient(135deg,#4f46e5,#2563eb);
-  --danger:#dc2626;
-  --shadow-sm:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);
-  --shadow-lg:0 16px 40px rgba(15,23,42,.2);
+  /* Expedition, day: ivory paper, warm stone ink, path-yellow accent */
+  --bg:#faf7ef; --card:#fffdf7; --ink:#2b2622; --mut:#7c7468;
+  --line:#e6dfd0; --line-soft:#efe9db;
+  --seg:#eee8d9; --seg-on:#fffdf7;
+  --glass:rgba(250,247,239,.85);
+  --glow:rgba(202,168,62,.15);
+  --acc:#f0b429; --acc-ink:#3b2c07;
+  --acc-grad:linear-gradient(135deg,#fbcf45,#eda711);
+  --acc-glow:rgba(224,164,26,.4);
+  --link:#2e7d46;
+  --leaf-bg:#e2efdc; --leaf-ink:#2b5e39;
+  --danger:#c93a2b;
+  --shadow-sm:0 1px 2px rgba(66,50,22,.05),0 4px 16px rgba(66,50,22,.07);
+  --shadow-lg:0 16px 40px rgba(66,50,22,.22);
   --font-round:ui-rounded,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  --s-not:#e5e7eb; --s-not-ink:#374151;
-  --s-app:#dbeafe; --s-app-ink:#1d4ed8;
-  --s-oa:#e0e7ff;  --s-oa-ink:#4338ca;
-  --s-int:#ffedd5; --s-int-ink:#c2410c;
-  --s-off:#d1fae5; --s-off-ink:#047857;
-  --s-rej:#fee2e2; --s-rej-ink:#b91c1c;
+  --s-not:#ece7db; --s-not-ink:#5b5348;
+  --s-app:#dcecf4; --s-app-ink:#23617e;
+  --s-oa:#e7e3f6;  --s-oa-ink:#54499f;
+  --s-int:#fbe7d0; --s-int-ink:#a34d13;
+  --s-off:#dbefdd; --s-off-ink:#1c7c43;
+  --s-rej:#f6ded6; --s-rej-ink:#a13527;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#0b1120; --card:#161e30; --ink:#f1f5f9; --mut:#94a3b8;
-    --line:#2b3752; --line-soft:#212d47;
-    --seg:#131b2d; --seg-on:#2a3a5c;
-    --glass:rgba(11,17,32,.8);
-    --glow:rgba(99,102,241,.14);
-    --acc:#3b82f6;
-    --acc-grad:linear-gradient(135deg,#6366f1,#3b82f6);
+    /* Expedition, night: moss green-black, firefly-gold accent */
+    --bg:#0c1410; --card:#17221a; --ink:#edf2e7; --mut:#9db3a1;
+    --line:#2b3b2f; --line-soft:#223126;
+    --seg:#101a14; --seg-on:#28402e;
+    --glass:rgba(12,20,16,.82);
+    --glow:rgba(246,201,75,.10);
+    --acc:#f2c14e; --acc-ink:#33260a;
+    --acc-grad:linear-gradient(135deg,#f6cd5e,#e0a41f);
+    --acc-glow:rgba(242,193,78,.32);
+    --link:#93d8a4;
+    --leaf-bg:#1d3325; --leaf-ink:#a9dcb4;
+    --danger:#e2584a;
     --shadow-sm:0 1px 2px rgba(0,0,0,.35),0 6px 18px rgba(0,0,0,.3);
     --shadow-lg:0 16px 40px rgba(0,0,0,.55);
-    --s-not:#334155; --s-not-ink:#cbd5e1;
-    --s-app:#1e3a8a; --s-app-ink:#93c5fd;
-    --s-oa:#312e81;  --s-oa-ink:#a5b4fc;
-    --s-int:#7c2d12; --s-int-ink:#fdba74;
-    --s-off:#064e3b; --s-off-ink:#6ee7b7;
-    --s-rej:#7f1d1d; --s-rej-ink:#fca5a5;
+    --s-not:#2c342c; --s-not-ink:#c2cec0;
+    --s-app:#16404f; --s-app-ink:#94cce4;
+    --s-oa:#2d2b58;  --s-oa-ink:#b5b0f0;
+    --s-int:#4c2a10; --s-int-ink:#f5b477;
+    --s-off:#14402a; --s-off-ink:#88dfa9;
+    --s-rej:#4a1d15; --s-rej-ink:#f3a294;
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -58,13 +67,13 @@ button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--card);
   border:1px solid var(--line);border-radius:12px;padding:10px 12px;width:100%}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc);
-  box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+  box-shadow:0 0 0 3px rgba(240,180,41,.25)}
 select{appearance:none;-webkit-appearance:none;padding-right:32px;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>");
   background-repeat:no-repeat;background-position:right 11px center}
 textarea{min-height:88px;resize:vertical}
 label{display:block;font-size:.78rem;font-weight:600;color:var(--mut);margin:12px 0 4px}
-a{color:var(--acc)}
+a{color:var(--link)}
 .card,.b-card,.mv-btn,.hbtn,.chip,.tab,.btn,.soon-chip,.linkbtn,#fab{
   transition:transform .13s ease,opacity .13s ease}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
@@ -90,8 +99,8 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--mut);
   border-radius:999px;padding:7px 13px;font-size:.78rem;font-weight:600;white-space:nowrap}
-.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);
-  box-shadow:0 3px 10px rgba(37,99,235,.35)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink);font-weight:700;
+  box-shadow:0 3px 10px var(--acc-glow)}
 .chip.open-chip{color:#059669}
 .chip.open-chip.on{background:#059669;border-color:#059669;color:#fff;box-shadow:0 3px 10px rgba(5,150,105,.35)}
 #search{border-radius:999px;padding:11px 16px 11px 38px;
@@ -141,12 +150,16 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .grave-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin:6px 2px 12px}
 .grave-card{filter:grayscale(.4);margin-bottom:10px}
 .grave-life{color:var(--danger);font-style:italic}
-.empty{text-align:center;color:var(--mut);padding:56px 24px;font-size:.9rem;line-height:1.7}
+.empty{text-align:center;color:var(--mut);padding:40px 24px;font-size:.9rem;line-height:1.7}
+.hero-img{display:block;margin:0 auto 14px;height:130px;width:auto}
+.grave-hero{display:block;margin:10px auto 4px;height:104px;filter:grayscale(.25)}
+.wait-hero{float:right;height:74px;margin:-4px 0 0 10px}
+.drow-status{overflow:hidden}
 
 /* fab */
 #fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:20;
-  width:56px;height:56px;border-radius:19px;border:none;background:var(--acc-grad);color:#fff;
-  font-size:1.8rem;line-height:1;box-shadow:0 10px 26px rgba(37,99,235,.42)}
+  width:56px;height:56px;border-radius:19px;border:none;background:var(--acc-grad);color:var(--acc-ink);
+  font-size:1.8rem;line-height:1;box-shadow:0 10px 26px var(--acc-glow)}
 #fab:active{transform:scale(.9)}
 
 /* sheets */
@@ -169,8 +182,8 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .btn{flex:1;border-radius:14px;padding:13px;font-weight:700;font-size:.95rem;border:1px solid var(--line);
   background:var(--card);color:var(--ink);font-family:var(--font-round)}
 .btn:active{transform:scale(.97)}
-.btn.primary{background:var(--acc-grad);border-color:transparent;color:#fff;
-  box-shadow:0 4px 14px rgba(37,99,235,.35)}
+.btn.primary{background:var(--acc-grad);border-color:transparent;color:var(--acc-ink);
+  box-shadow:0 4px 14px var(--acc-glow)}
 .btn.danger{color:var(--danger)}
 .btn:disabled{opacity:.5}
 
@@ -181,7 +194,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .drow .v{white-space:pre-wrap;word-break:break-word}
 .linkbtns{display:flex;gap:8px;margin:12px 0 4px;flex-wrap:wrap}
 .linkbtn{flex:1;min-width:120px;text-align:center;text-decoration:none;border:none;
-  background:var(--s-app);color:var(--s-app-ink);border-radius:12px;padding:12px;font-weight:700;font-size:.85rem}
+  background:var(--leaf-bg);color:var(--leaf-ink);border-radius:12px;padding:12px;font-weight:700;font-size:.85rem}
 .linkbtn:active{transform:scale(.97);opacity:.85}
 
 /* stage rows in edit */
@@ -270,7 +283,8 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .mv-btn .b-dot{margin:0}
 
 /* setup */
-#setup{max-width:460px;margin:0 auto;padding:36px 22px}
+#setup{max-width:460px;margin:0 auto;padding:24px 22px 36px}
+#setupHero{display:block;height:150px;margin:0 0 10px -32px}
 #setup h1{font-size:1.3rem;margin-bottom:6px;font-family:var(--font-round);letter-spacing:-.02em}
 #setup p{font-size:.85rem;color:var(--mut);line-height:1.5;margin-bottom:8px}
 #setup .btn{margin-top:18px;width:100%}
@@ -289,7 +303,8 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 
 <!-- SETUP -->
 <div id="setup" style="display:none">
-  <h1>📱 Trackr Mobile</h1>
+  <img id="setupHero" src="assets/char-climbing.png" alt="">
+  <h1>Trackr Mobile</h1>
   <p>This page stores nothing on any server. It talks directly from your phone to the GitHub API and saves your access token only in this browser.</p>
   <label>GitHub username</label><input id="s_owner" autocapitalize="none" autocorrect="off">
   <label>Data repository (private)</label><input id="s_repo" autocapitalize="none" autocorrect="off">
@@ -360,7 +375,7 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
       <div class="cal-body" id="calBody"></div>
     </div>
     <div class="legend">
-      <span><span class="leg-dot" style="background:#9ca3af"></span>Not Started</span>
+      <span><span class="leg-dot" style="background:#a8a29e"></span>Not Started</span>
       <span><span class="leg-dot" style="background:#3b82f6"></span>Applied / OA</span>
       <span><span class="leg-dot" style="background:#f97316"></span>Interviewing</span>
       <span><span class="leg-dot" style="background:#10b981"></span>Offer</span>
@@ -725,9 +740,10 @@ function renderGraveBadge(){
 function renderGraveyard(){
   const el=document.getElementById('graveList');
   const dead=apps.filter(a=>(a['Current Status']||'')==='Rejected');
-  if(!dead.length){el.innerHTML=`<div class="empty">🪦<br>The graveyard is empty — no rejections yet.</div>`;return;}
+  if(!dead.length){el.innerHTML=`<div class="empty"><img class="hero-img" src="assets/char-celebrating.png" alt="">The graveyard is empty — no rejections yet. Long may it last.</div>`;return;}
   dead.sort((x,y)=>(rejectionDate(y)||'').localeCompare(rejectionDate(x)||''));
-  el.innerHTML=`<div class="grave-title">🪦 ${dead.length} laid to rest</div>`+dead.map(a=>{
+  el.innerHTML=`<img class="grave-hero" src="assets/char-sad.png" alt="">`
+    +`<div class="grave-title" style="text-align:center">🪦 ${dead.length} laid to rest</div>`+dead.map(a=>{
     const rej=rejectionDate(a),applied=a['Date Applied'];
     let life='';
     if(applied&&rej){
@@ -746,7 +762,7 @@ function renderGraveyard(){
 
 // ── Nudges (same rules as the desktop tracker's Nudges tab) ───────────────────
 const NUDGE_STALL_DAYS=10, NUDGE_STAGE_DAYS=5, WAIT_CHASE_DAYS=21;
-const NUDGE_SEV=['#ef4444','#f59e0b','#818cf8'];
+const NUDGE_SEV=['#ef4444','#f59e0b','#65a30d'];
 
 function computeNudges(){
   const today=new Date();today.setHours(0,0,0,0);
@@ -832,7 +848,7 @@ function renderNudges(){
   const el=document.getElementById('nudgeList');
   const nudges=computeNudges();
   if(!nudges.length){
-    el.innerHTML='<div class="empty">✅ No nudges — nothing stalled, nothing pending, no drafts missing.</div>';
+    el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-celebrating.png" alt="">All clear — nothing stalled, nothing pending, no drafts missing.</div>';
     return;
   }
   el.innerHTML=nudges.map(n=>`
@@ -901,7 +917,7 @@ function renderList(){
     });
   }
   const el=document.getElementById('list');
-  if(!list.length){el.innerHTML='<div class="empty">No applications match.</div>';return;}
+  if(!list.length){el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No applications match.</div>';return;}
   el.innerHTML=list.map(({a})=>{
     const s=a['Current Status']||'Not Started';
     const open=a['Applications Open']==='Yes'?'<span class="open-dot">●</span> Open now':'';
@@ -930,7 +946,7 @@ function renderList(){
 }
 
 // ── Calendar (desktop parity: deadlines, applied, stages, opened, projected) ──
-const DOT={'Not Started':'#9ca3af','Applied':'#3b82f6','OA Stage':'#6366f1',
+const DOT={'Not Started':'#a8a29e','Applied':'#3b82f6','OA Stage':'#6366f1',
            'Interviewing':'#f97316','Offer':'#10b981','Rejected':'#ef4444'};
 let calEvents={};
 function pad2(n){return String(n).padStart(2,'0');}
@@ -1094,7 +1110,7 @@ function openDetail(id){
   const rows=[];
   const s=a['Current Status']||'Not Started';
   rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
-  rows.push(`<div class="drow"><div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>${a['Awaiting Response']==='Yes'?' <span class="wait-chip">⏳ waiting</span>':''}</div></div>`);
+  rows.push(`<div class="drow drow-status">${a['Awaiting Response']==='Yes'?'<img class="wait-hero" src="assets/char-waiting.png" alt="">':s==='Offer'?'<img class="wait-hero" src="assets/char-celebrating.png" alt="">':''}<div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>${a['Awaiting Response']==='Yes'?' <span class="wait-chip">⏳ waiting</span>':''}</div></div>`);
   const dl=[
     ['Industry','Industry'],
     ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
