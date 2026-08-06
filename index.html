@@ -81,7 +81,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:32px;
 textarea{min-height:88px;resize:vertical}
 label{display:block;font-size:.78rem;font-weight:600;color:var(--mut);margin:12px 0 4px}
 a{color:var(--link)}
-.card,.b-card,.mv-btn,.hbtn,.chip,.tab,.btn,.soon-chip,.linkbtn,#fab{
+.card,.b-card,.mv-btn,.hbtn,.chip,.tab,.btn,.soon-chip,.linkbtn,.doc-chip,#fab{
   transition:transform .13s ease,opacity .13s ease}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 
@@ -150,6 +150,11 @@ header h1{font-size:1.08rem;flex:1;font-family:var(--font-round);font-weight:800
 .c-meta{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:8px;font-size:.75rem;color:var(--mut)}
 .c-meta b{color:var(--ink);font-weight:600}
 .open-dot{color:#10b981;font-weight:700}
+/* Attached-doc chips on the card (research notes, cover letter) — tap opens the doc */
+.c-docs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.doc-chip{display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:600;color:var(--mut);
+  text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.doc-chip:active{opacity:.85}
 .badge{flex:none;font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap}
 .s-not{background:var(--s-not);color:var(--s-not-ink)}
 .s-app{background:var(--s-app);color:var(--s-app-ink)}
@@ -969,13 +974,33 @@ function renderList(){
     const s=a['Current Status']||'Not Started';
     const topper=s==='Offer'?'char-celebrating.png':a['Awaiting Response']==='Yes'?'char-waiting.png':'';
     const open=a['Applications Open']==='Yes'?'<span class="open-dot">●</span> Open now':'';
+    // Expected opening (Not Started & not open yet): confirmed Opening Date,
+    // else last year's opening projected +1yr, flagged as an estimate — same
+    // rule the calendar's "Est. opens" uses.
+    let opens='';
+    if(s==='Not Started'&&a['Applications Open']!=='Yes'){
+      if(a['Opening Date']){
+        const od=daysLeft(a['Opening Date']);
+        if(od!==null&&od>=0)
+          opens=`Opens <b>${fmtShort(a['Opening Date'])}</b>${od<=21?` <span class="dl-warn">· ${od===0?'today!':'in '+od+'d'}</span>`:''}`;
+      }else if(a['Last Year Opening Date']){
+        const d0=new Date(a['Last Year Opening Date']+'T00:00:00');
+        const proj=dstr(new Date(d0.getFullYear()+1,d0.getMonth(),d0.getDate()));
+        if(daysLeft(proj)>=-7)opens=`~ Est. opens <b>${fmtShort(proj)}</b>`;
+      }
+    }
     const d=daysLeft(a['Closing Date']);
     const cnt=d===null||d<0||d>14||s!=='Not Started'?''
       :` <span class="${d<=3?'dl-crit':'dl-warn'}">${d===0?'· today!':`· ${d}d left`}</span>`;
     const close=a['Closing Date']?`Closes <b>${fmtShort(a['Closing Date'])}</b>${cnt}`:'';
     const applied=a['Date Applied']?`Applied <b>${fmtShort(a['Date Applied'])}</b>`:'';
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
-    const meta=[open,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
+    const meta=[open,opens,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
+    const docChip=(url,label)=>`<a class="doc-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>`;
+    const docs=[
+      a['Research Link']?docChip(a['Research Link'],'📓 Research'):'',
+      a['Link to Cover Letter']?docChip(a['Link to Cover Letter'],'📄 Cover letter'):''
+    ].filter(Boolean).join('');
     return `<div class="card${topper?' has-topper':''}" onclick="openDetail('${esc(a['ID'])}')">
       ${topper?`<img class="card-topper" src="assets/${topper}" alt="">`:''}
       <div class="c-top">
@@ -990,6 +1015,7 @@ function renderList(){
         </div>
       </div>
       ${meta?`<div class="c-meta">${meta}</div>`:''}
+      ${docs?`<div class="c-docs">${docs}</div>`:''}
     </div>`;
   }).join('');
 }
