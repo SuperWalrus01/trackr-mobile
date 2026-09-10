@@ -656,7 +656,10 @@ function csvToApps(text){
 }
 function toCSV(list){
   const q=v=>{v=(v||'').toString();return(v.includes(',')||v.includes('"')||v.includes('\n')||v.includes('\r'))?'"'+v.replace(/"/g,'""')+'"':v;};
-  return [FIELDS.join(','),...list.map(a=>FIELDS.map(f=>q(a[f])).join(','))].join('\r\n');
+  // LF, not CRLF — see the same note in the desktop index.html. A CRLF save
+  // here rewrote all 114 lines through the GitHub API (which bypasses any
+  // local git normalisation), so every desktop edit then conflicted.
+  return [FIELDS.join(','),...list.map(a=>FIELDS.map(f=>q(a[f])).join(','))].join('\n');
 }
 
 // ── Stage history helpers (same semantics as desktop) ─────────────────────────
