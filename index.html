@@ -422,6 +422,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
   <div class="vine" aria-hidden="true"></div>
   <div class="tabs">
     <button class="tab on" id="tab-list" onclick="setView('list')">List</button>
+    <button class="tab" id="tab-events" onclick="setView('events')" aria-label="Events">🎟️<span class="gbadge" id="eventCount"></span></button>
     <button class="tab" id="tab-cal" onclick="setView('cal')">Calendar</button>
     <button class="tab" id="tab-board" onclick="setView('board')">Board</button>
     <button class="tab" id="tab-nudge" onclick="setView('nudge')">Nudges<span class="nbadge" id="nudgeBadge"></span></button>
@@ -479,6 +480,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
       <span><span class="leg-dot" style="background:#a78bfa"></span>Stage</span>
       <span><span class="leg-dot" style="background:#34d399"></span>● Opened</span>
       <span><span class="leg-dot" style="background:transparent;border:1px dashed var(--mut)"></span>Est. opens</span>
+      <span><span class="leg-dot" style="background:#e0a030"></span>🎟️ Event</span>
     </div>
     <div class="day-head" id="dayHead"></div>
     <div id="dayList"></div>
@@ -534,6 +536,11 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
         <label>Application Portal Link</label><input id="e_portal" type="url" autocapitalize="none">
         <label>Cover Letter Required</label>
         <select id="e_clreq"><option value="">—</option><option>Yes</option><option>No</option><option>Optional</option></select>
+        <label>Type</label>
+        <select id="e_type"><option value="">Spring week / programme</option><option value="Event">🎟️ Event</option></select>
+        <label>Event Date <span style="font-weight:400;opacity:.7">(events only)</span></label><input id="e_evdate" type="date">
+        <label>Format <span style="font-weight:400;opacity:.7">(events only)</span></label>
+        <select id="e_format"><option value="">—</option><option>In-Person</option><option>Virtual</option><option>Hybrid</option></select>
       </div>
       <label>Industry</label>
       <select id="e_industry"><option value="">—</option><option>Finance</option><option>Tech</option></select>
@@ -586,7 +593,8 @@ const FIELDS = [
   'Link to Cover Letter','CV/Resume Version','Expected Process Stages',
   'Testing/Prep Info','Current Status','Date Applied','Notes for Progress','Cover Letter Required',
   'Research Link','Acceptance Rate','Conversion Rate','Applications Open','Cover Letter Draft','Draft Made',
-  'Stage History','Industry','Awaiting Response','Action By','Source'
+  'Stage History','Industry','Awaiting Response','Action By','Source',
+  'Type','Event Date','Format'
 ];
 const STATUSES = ['Not Started','Max 1 Application','Applied','OA Stage',
   'Interviewing','Offer','Rejected','Cannot Apply'];
@@ -798,12 +806,13 @@ async function loadData(manual){
 
 function setView(v){
   view=v;
-  document.getElementById('v-list').style.display=v==='list'?'':'none';
+  document.getElementById('v-list').style.display=(v==='list'||v==='events')?'':'none';
   document.getElementById('v-cal').style.display=v==='cal'?'':'none';
   document.getElementById('v-board').style.display=v==='board'?'':'none';
   document.getElementById('v-nudge').style.display=v==='nudge'?'':'none';
   document.getElementById('v-grave').style.display=v==='grave'?'':'none';
   document.getElementById('tab-list').classList.toggle('on',v==='list');
+  document.getElementById('tab-events').classList.toggle('on',v==='events');
   document.getElementById('tab-cal').classList.toggle('on',v==='cal');
   document.getElementById('tab-board').classList.toggle('on',v==='board');
   document.getElementById('tab-nudge').classList.toggle('on',v==='nudge');
@@ -822,13 +831,24 @@ function toggleDir(){
   render();
 }
 
+// Events (Type=Event rows) have their own tab; the List tab and every
+// pipeline count stay spring weeks/programmes only.
+const isEvent=a=>a['Type']==='Event';
+const modePool=()=>apps.filter(a=>isEvent(a)===(view==='events'));
+function renderEventCount(){
+  const t=today();
+  const n=apps.filter(a=>isEvent(a)&&isTodo(a)&&a['Applications Open']==='Yes'
+    &&!(a['Closing Date']&&a['Closing Date']<t)).length;
+  document.getElementById('eventCount').textContent=n||'';
+}
 function renderChips(){
-  const counts={};apps.forEach(a=>{const s=a['Current Status']||'Not Started';counts[s]=(counts[s]||0)+1;});
-  const nOpen=apps.filter(a=>a['Applications Open']==='Yes').length;
+  const pool=modePool();
+  const counts={};pool.forEach(a=>{const s=a['Current Status']||'Not Started';counts[s]=(counts[s]||0)+1;});
+  const nOpen=pool.filter(a=>a['Applications Open']==='Yes').length;
   const el=document.getElementById('chips');
   el.innerHTML=`<button class="chip open-chip${openOnly?' on':''}" onclick="toggleOpenFilter()">● Open now (${nOpen})</button>`
     +[''].concat(STATUSES).map(s=>{
-    const label=s===''?`All (${apps.length})`:`${s} (${counts[s]||0})`;
+    const label=s===''?`All (${pool.length})`:`${s} (${counts[s]||0})`;
     return `<button class="chip${statusFilter===s?' on':''}" onclick="setFilter('${s}')">${label}</button>`;
   }).join('');
 }
@@ -836,7 +856,7 @@ function setFilter(s){statusFilter=s;render();}
 function toggleOpenFilter(){openOnly=!openOnly;render();}
 
 function render(){
-  renderNudgeBadge();renderGraveBadge();renderSectorCounts();renderSyncAge();
+  renderNudgeBadge();renderGraveBadge();renderEventCount();renderSectorCounts();renderSyncAge();
   if(view==='cal'){renderCal();return;}
   if(view==='board'){renderBoard();return;}
   if(view==='nudge'){renderNudges();return;}
@@ -888,7 +908,7 @@ function computeNudges(){
   const nudges=[];
   apps.forEach(a=>{
     const st=a['Current Status']||'Not Started';
-    if(isClosed(a)||st==='Offer')return;
+    if(isEvent(a)||isClosed(a)||st==='Offer')return;
     const closingIn=a['Closing Date']?-daysAgo(a['Closing Date']):null;
     const openNow=a['Applications Open']==='Yes'||
       (a['Opening Date']&&daysAgo(a['Opening Date'])>=0&&(closingIn==null||closingIn>=0));
@@ -993,7 +1013,7 @@ function daysLeft(ds){
 function renderSoon(){
   // same rule as the desktop urgency bar: still to do, closing within 14 days
   const bar=document.getElementById('soonBar');
-  const urgent=apps.filter(isTodo)
+  const urgent=modePool().filter(isTodo)
     .map(a=>({a,d:daysLeft(a['Closing Date'])}))
     .filter(({d})=>d!==null&&d>=0&&d<=14)
     .sort((x,y)=>x.d-y.d);
@@ -1009,7 +1029,10 @@ function renderList(){
   renderSoon();
   const q=document.getElementById('search').value.trim().toLowerCase();
   const sec=document.getElementById('sectorSel').value;
+  const evMode=view==='events';
+  document.querySelector('#sortSel option[value="lyopen"]').textContent=evMode?'Sort: Event Date':'Sort: Last Yr Opening';
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
+    if(isEvent(a)!==evMode)return false;
     if(statusFilter&&(a['Current Status']||'Not Started')!==statusFilter)return false;
     if(openOnly&&a['Applications Open']!=='Yes')return false;
     if(sec&&a['Industry']!==sec)return false;
@@ -1019,7 +1042,7 @@ function renderList(){
   });
   if(sortCol){
     // desktop-tracker semantics: sort by the chosen date column, blanks always last
-    const key={open:'Opening Date',lyopen:'Last Year Opening Date',
+    const key={open:'Opening Date',lyopen:evMode?'Event Date':'Last Year Opening Date',
                closing:'Closing Date',applied:'Date Applied'}[sortCol];
     list.sort((x,y)=>{
       const av=x.a[key]||'', bv=y.a[key]||'';
@@ -1038,7 +1061,9 @@ function renderList(){
     });
   }
   const el=document.getElementById('list');
-  if(!list.length){el.innerHTML='<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No applications match.</div>';return;}
+  if(!list.length){el.innerHTML=evMode&&!apps.some(isEvent)
+    ?'<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No events yet — they arrive with the next desktop Update Tracker sync.</div>'
+    :'<div class="empty"><img class="hero-img" src="assets/char-forward.png" alt="">No applications match.</div>';return;}
   el.innerHTML=list.map(({a})=>{
     const s=a['Current Status']||'Not Started';
     const topper=s==='Offer'?'char-celebrating.png':a['Awaiting Response']==='Yes'?'char-waiting.png':'';
@@ -1064,7 +1089,10 @@ function renderList(){
     const close=a['Closing Date']?`Closes <b>${fmtShort(a['Closing Date'])}</b>${cnt}`:'';
     const applied=a['Date Applied']?`Applied <b>${fmtShort(a['Date Applied'])}</b>`:'';
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
-    const meta=[open,opens,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
+    const evd=a['Event Date']||'';
+    const evOn=isEvent(a)&&(evd||a['Format'])
+      ?`🎟️ <b>${/^\d{4}-\d{2}-\d{2}$/.test(evd)?fmtShort(evd):esc(evd||'date TBC')}</b>${a['Format']?' '+esc(a['Format']):''}`:'';
+    const meta=[evOn,open,opens,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
     const docChip=(url,label)=>`<a class="doc-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>`;
     const docs=[
       a['Research Link']?docChip(a['Research Link'],'📓 Research'):'',
@@ -1103,7 +1131,8 @@ function buildCalEvents(){
   apps.forEach(a=>{
     if(a['Closing Date'])add(a['Closing Date'],{type:'deadline',a});
     if(a['Date Applied'])add(a['Date Applied'],{type:'applied',a});
-    if(a['Opening Date'])add(a['Opening Date'],{type:'opened',a});
+    if(a['Opening Date']&&!isEvent(a))add(a['Opening Date'],{type:'opened',a});
+    if(isEvent(a)&&!isClosed(a)&&/^\d{4}-\d{2}-\d{2}$/.test(a['Event Date']||''))add(a['Event Date'],{type:'event',a});
     parseStages(a['Stage History']).forEach(e=>{
       if(!e.d)return;
       if(stageToStatus(e.s)==='Applied'&&a['Date Applied']===e.d)return;
@@ -1111,7 +1140,7 @@ function buildCalEvents(){
     });
     // projected opening = last year's date +1yr, only when this year's is unknown
     const ly=a['Last Year Opening Date'];
-    if(ly&&!a['Opening Date']){
+    if(ly&&!a['Opening Date']&&!isEvent(a)){
       const d=new Date(ly+'T00:00:00');
       add(dstr(new Date(d.getFullYear()+1,d.getMonth(),d.getDate())),{type:'proj',a});
     }
@@ -1122,13 +1151,14 @@ function dotColor(ev){
   if(ev.type==='applied')return '#818cf8';
   if(ev.type==='stage')return '#a78bfa';
   if(ev.type==='opened')return '#34d399';
+  if(ev.type==='event')return '#e0a030';
   return '';
 }
 
 function renderCal(){
   buildCalEvents();
   document.getElementById('inPlayCount').textContent=
-    apps.filter(a=>!isClosed(a)&&(a['Current Status']||'Not Started')!=='Offer').length;
+    apps.filter(a=>!isEvent(a)&&!isClosed(a)&&(a['Current Status']||'Not Started')!=='Offer').length;
   document.getElementById('calLabel').textContent=`${MONTHS[calMonth]} ${calYear}`;
   const first=new Date(calYear,calMonth,1);
   const last=new Date(calYear,calMonth+1,0);
@@ -1168,8 +1198,8 @@ function renderDayList(){
   const evs=calEvents[selDate]||[];
   document.getElementById('dayHead').textContent=
     `${fmtShort(selDate)} — ${evs.length?evs.length+' event'+(evs.length>1?'s':''):'no events'}`;
-  const label=ev=>({deadline:'Deadline',applied:'✓ Applied',opened:'● Opened',
-                    proj:'~ Est. opens'})[ev.type]||esc(ev.stage||'Stage');
+  const label=ev=>({deadline:isEvent(ev.a)?'🎟️ Apply by':'Deadline',applied:'✓ Applied',opened:'● Opened',
+                    proj:'~ Est. opens',event:'🎟️ Event'})[ev.type]||esc(ev.stage||'Stage');
   document.getElementById('dayList').innerHTML=evs.map(ev=>{
     const a=ev.a, s=a['Current Status']||'Not Started';
     return `<div class="card" onclick="openDetail('${esc(a['ID'])}')">
@@ -1191,6 +1221,7 @@ function calToday(){const n=new Date();calYear=n.getFullYear();calMonth=n.getMon
 function renderBoard(){
   const byStatus={};STATUSES.forEach(s=>byStatus[s]=[]);
   apps.forEach(a=>{
+    if(isEvent(a))return;   // events have their own tab
     const s=STATUSES.includes(a['Current Status'])?a['Current Status']:'Not Started';
     byStatus[s].push(a);
   });
@@ -1259,6 +1290,7 @@ function openDetail(id){
   rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
   rows.push(`<div class="drow drow-status">${a['Awaiting Response']==='Yes'?'<img class="wait-hero" src="assets/char-waiting.png" alt="">':s==='Offer'?'<img class="wait-hero" src="assets/char-celebrating.png" alt="">':''}<div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>${a['Awaiting Response']==='Yes'?' <span class="wait-chip">⏳ waiting</span>':''}</div></div>`);
   const dl=[
+    ['Type','Type'],['🎟️ Event Date','Event Date'],['Format','Format'],
     ['Industry','Industry'],
     ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
     ['Closing Date','Closing Date'],['Rolling Deadlines','Rolling Deadlines'],['Date Applied','Date Applied'],
@@ -1318,6 +1350,9 @@ function openAdd(){
   document.getElementById('e_addonly').style.display='';
   ['e_co','e_role','e_loc','e_portal'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('e_clreq').value='';
+  document.getElementById('e_type').value=view==='events'?'Event':'';
+  document.getElementById('e_evdate').value='';
+  document.getElementById('e_format').value='';
   document.getElementById('e_industry').value='';
   document.getElementById('e_status').value='Not Started';
   document.getElementById('e_appopen').value='';
@@ -1349,6 +1384,11 @@ async function saveEdit(){
     a['Application Portal Link']=document.getElementById('e_portal').value.trim();
     a['Cover Letter Required']=document.getElementById('e_clreq').value;
     a['Industry']=industry;
+    a['Type']=document.getElementById('e_type').value;
+    if(a['Type']==='Event'){
+      a['Event Date']=document.getElementById('e_evdate').value;
+      a['Format']=document.getElementById('e_format').value;
+    }
     a['Current Status']=status;a['Applications Open']=appopen;
     a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
     a['Awaiting Response']=awaiting;
@@ -1455,7 +1495,8 @@ function renderSectorCounts(){
   if(!sel)return;
   [...sel.options].forEach(o=>{
     if(o.dataset.label===undefined)o.dataset.label=o.textContent;
-    const n=o.value?apps.filter(a=>a['Industry']===o.value).length:apps.length;
+    const pool=modePool();
+    const n=o.value?pool.filter(a=>a['Industry']===o.value).length:pool.length;
     o.textContent=`${o.dataset.label} (${n})`;
   });
 }
