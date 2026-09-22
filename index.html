@@ -537,7 +537,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
         <label>Cover Letter Required</label>
         <select id="e_clreq"><option value="">—</option><option>Yes</option><option>No</option><option>Optional</option></select>
         <label>Type</label>
-        <select id="e_type"><option value="">Spring week / programme</option><option value="Event">🎟️ Event</option></select>
+        <select id="e_type" onchange="syncEvStatus(this.value==='Event')"><option value="">Spring week / programme</option><option value="Event">🎟️ Event</option></select>
         <label>Event Date <span style="font-weight:400;opacity:.7">(events only)</span></label><input id="e_evdate" type="date">
         <label>Format <span style="font-weight:400;opacity:.7">(events only)</span></label>
         <select id="e_format"><option value="">—</option><option>In-Person</option><option>Virtual</option><option>Hybrid</option></select>
@@ -550,6 +550,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
         <option>Applied</option><option>OA Stage</option>
         <option>Interviewing</option><option>Offer</option><option>Rejected</option>
         <option>Cannot Apply</option>
+        <option class="ev-status">Can’t Go</option><option class="ev-status">Not Eligible</option>
       </select>
       <label>Applications Open?</label>
       <select id="e_appopen"><option value="">Not yet</option><option value="Yes">Yes — open now</option></select>
@@ -600,13 +601,19 @@ const STATUSES = ['Not Started','Max 1 Application','Applied','OA Stage',
   'Interviewing','Offer','Rejected','Cannot Apply'];
 const STATUS_CLS = {'Not Started':'s-not','Max 1 Application':'s-max','Applied':'s-app',
   'OA Stage':'s-oa','Interviewing':'s-int','Offer':'s-off','Rejected':'s-rej',
-  'Cannot Apply':'s-cant'};
+  'Cannot Apply':'s-cant','Can’t Go':'s-cant','Not Eligible':'s-cant'};
+// Event-only dead ends (mirrors the desktop); graveyard-bound like Rejected.
+// Curly apostrophe on purpose: a straight one breaks the inline onclick='…'.
+const EVENT_ONLY_STATUSES=['Can’t Go','Not Eligible'];
+const statusesFor=a=>a&&a['Type']==='Event'?STATUSES.concat(EVENT_ONLY_STATUSES):STATUSES;
 // Mirrors the desktop: both are dead ends handled exactly like a rejection.
 // "Max 1 Application" — the company caps you at one submission and you spent it
 // on a sibling role. "Cannot Apply" — ruled out before applying, e.g. declined
 // for lacking visa sponsorship. Neither is to-do, in flight, or nudged.
 const TODO_STATUSES = ['','Not Started'];
-const CLOSED_STATUSES = ['Rejected','Cannot Apply','Max 1 Application'];
+const CLOSED_STATUSES = ['Rejected','Cannot Apply','Max 1 Application',...EVENT_ONLY_STATUSES];
+// Graveyard = rejections, plus events you can't go to / aren't eligible for.
+const isBuried = a => ['Rejected',...EVENT_ONLY_STATUSES].includes(a['Current Status']||'');
 const isTodo = a => TODO_STATUSES.includes(a['Current Status']||'');
 const isClosed = a => CLOSED_STATUSES.includes(a['Current Status']||'');
 
@@ -847,7 +854,7 @@ function renderChips(){
   const nOpen=pool.filter(a=>a['Applications Open']==='Yes').length;
   const el=document.getElementById('chips');
   el.innerHTML=`<button class="chip open-chip${openOnly?' on':''}" onclick="toggleOpenFilter()">● Open now (${nOpen})</button>`
-    +[''].concat(STATUSES).map(s=>{
+    +[''].concat(view==='events'?STATUSES.concat(EVENT_ONLY_STATUSES):STATUSES).map(s=>{
     const label=s===''?`All (${pool.length})`:`${s} (${counts[s]||0})`;
     return `<button class="chip${statusFilter===s?' on':''}" onclick="setFilter('${s}')">${label}</button>`;
   }).join('');
@@ -872,12 +879,12 @@ function rejectionDate(a){
   return rej.length?rej[rej.length-1].d:'';
 }
 function renderGraveBadge(){
-  const n=apps.filter(a=>(a['Current Status']||'')==='Rejected').length;
+  const n=apps.filter(isBuried).length;
   document.getElementById('graveCount').textContent=n||'';
 }
 function renderGraveyard(){
   const el=document.getElementById('graveList');
-  const dead=apps.filter(a=>(a['Current Status']||'')==='Rejected');
+  const dead=apps.filter(isBuried);
   if(!dead.length){el.innerHTML=`<div class="empty"><img class="hero-img" src="assets/char-celebrating.png" alt="">The graveyard is empty — no rejections yet. Long may it last.</div>`;return;}
   dead.sort((x,y)=>(rejectionDate(y)||'').localeCompare(rejectionDate(x)||''));
   el.innerHTML=`<img class="grave-hero" src="assets/char-sad.png" alt="">`
@@ -1120,7 +1127,7 @@ function renderList(){
 // ── Calendar (desktop parity: deadlines, applied, stages, opened, projected) ──
 const DOT={'Not Started':'#a8a29e','Max 1 Application':'#8d7b8d','Applied':'#3b82f6',
            'OA Stage':'#6366f1','Interviewing':'#f97316','Offer':'#10b981',
-           'Rejected':'#ef4444','Cannot Apply':'#78838d'};
+           'Rejected':'#ef4444','Cannot Apply':'#78838d','Can’t Go':'#78838d','Not Eligible':'#78838d'};
 let calEvents={};
 function pad2(n){return String(n).padStart(2,'0');}
 function dstr(d){return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
@@ -1253,7 +1260,7 @@ function openMove(id){
   document.getElementById('mv_title').textContent=a['Company Name'];
   document.getElementById('mv_body').innerHTML=
     `<div style="font-size:.78rem;color:var(--mut);margin-top:8px">Move to…</div>`+
-    STATUSES.map(s=>`<button class="mv-btn${s===cur?' cur':''}" onclick="moveTo('${s}')">
+    statusesFor(a).map(s=>`<button class="mv-btn${s===cur?' cur':''}" onclick="moveTo('${s}')">
       <span class="b-dot" style="background:${DOT[s]}"></span>${s}${s===cur?' <span style="margin-left:auto;font-size:.72rem;color:var(--mut)">current</span>':''}
     </button>`).join('')+
     `<button class="mv-btn" style="justify-content:center;color:var(--acc)" onclick="closeSheet('ovMove');openDetail('${esc(id)}')">View details</button>`;
@@ -1334,7 +1341,8 @@ function openEdit(id){
   document.getElementById('e_title').textContent='Edit — '+a['Company Name'];
   document.getElementById('e_addonly').style.display='none';
   document.getElementById('e_industry').value=a['Industry']||'';
-  document.getElementById('e_status').value=STATUSES.includes(a['Current Status'])?a['Current Status']:'Not Started';
+  syncEvStatus(a['Type']==='Event');
+  document.getElementById('e_status').value=statusesFor(a).includes(a['Current Status'])?a['Current Status']:'Not Started';
   document.getElementById('e_appopen').value=a['Applications Open']==='Yes'?'Yes':'';
   document.getElementById('e_close').value=a['Closing Date']||'';
   document.getElementById('e_applied').value=a['Date Applied']||'';
@@ -1344,6 +1352,9 @@ function openEdit(id){
   parseStages(a['Stage History']).forEach(e=>addStageRow(e.s,e.d));
   document.getElementById('ovEdit').classList.add('show');
 }
+function syncEvStatus(ev){
+  document.querySelectorAll('#e_status .ev-status').forEach(o=>{o.hidden=!ev;o.disabled=!ev;});
+}
 function openAdd(){
   editIsAdd=true;currentId=null;
   document.getElementById('e_title').textContent='Add Application';
@@ -1351,6 +1362,7 @@ function openAdd(){
   ['e_co','e_role','e_loc','e_portal'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('e_clreq').value='';
   document.getElementById('e_type').value=view==='events'?'Event':'';
+  syncEvStatus(view==='events');
   document.getElementById('e_evdate').value='';
   document.getElementById('e_format').value='';
   document.getElementById('e_industry').value='';
