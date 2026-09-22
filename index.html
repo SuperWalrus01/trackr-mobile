@@ -212,6 +212,10 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
 .ind-tech{background:var(--s-app);color:var(--s-app-ink)}
 .gbadge{display:inline-block;background:var(--mut);color:#fff;border-radius:9px;font-size:.66rem;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:1px}
 .gbadge:empty{display:none}
+.fmt-chip{display:inline-block;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.fmt-inperson{background:var(--leaf-bg);color:var(--leaf-ink)}
+.fmt-online{background:var(--s-app);color:var(--s-app-ink)}
+.fmt-other{background:var(--s-int);color:var(--s-int-ink)}
 .grave-ev{display:inline-block;margin-right:6px;font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:1px;background:var(--s-int);color:var(--s-int-ink)}
 .grave-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin:6px 2px 12px}
 .grave-card{filter:grayscale(.4);margin-bottom:10px}
@@ -442,6 +446,12 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
           <option value="Finance">Finance</option>
           <option value="Tech">Tech</option>
         </select>
+        <select id="fmtSel" onchange="render()" style="display:none" aria-label="Format">
+          <option value="">All formats</option>
+          <option value="inperson">📍 In person</option>
+          <option value="online">💻 Online</option>
+          <option value="other">🔀 Various</option>
+        </select>
         <select id="sortSel" onchange="setSort(this.value)">
           <option value="">Sort: deadline soonest</option>
           <option value="open">Sort: Opening Date</option>
@@ -541,7 +551,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
         <select id="e_type" onchange="syncEvStatus(this.value==='Event')"><option value="">Spring week / programme</option><option value="Event">🎟️ Event</option></select>
         <label>Event Date <span style="font-weight:400;opacity:.7">(events only)</span></label><input id="e_evdate" type="date">
         <label>Format <span style="font-weight:400;opacity:.7">(events only)</span></label>
-        <select id="e_format"><option value="">—</option><option>In-Person</option><option>Virtual</option><option>Hybrid</option></select>
+        <select id="e_format"><option value="">—</option><option value="In-Person">📍 In-Person</option><option value="Remote">💻 Remote (online)</option><option value="Hybrid">Hybrid</option><option value="Various">🔀 Various</option></select>
       </div>
       <label>Industry</label>
       <select id="e_industry"><option value="">—</option><option>Finance</option><option>Tech</option></select>
@@ -843,6 +853,18 @@ function toggleDir(){
 // pipeline count stay spring weeks/programmes only.
 const isEvent=a=>a['Type']==='Event';
 const modePool=()=>apps.filter(a=>isEvent(a)===(view==='events'));
+// Trackr's event format: In-Person / Remote / Various (Hybrid by hand).
+function fmtKind(a){
+  const f=(a['Format']||'').toLowerCase();
+  if(!f)return '';
+  if(/in[\s-]*person|on[\s-]*site|office/.test(f))return 'inperson';
+  if(/remote|virtual|online/.test(f))return 'online';
+  return 'other';
+}
+function fmtChip(a){
+  const k=fmtKind(a);if(!k)return '';
+  return `<span class="fmt-chip fmt-${k}">${k==='inperson'?'📍 In person':k==='online'?'💻 Online':'🔀 '+esc(a['Format'])}</span>`;
+}
 function renderEventCount(){
   const t=today();
   const n=apps.filter(a=>isEvent(a)&&isTodo(a)&&a['Applications Open']==='Yes'
@@ -1038,9 +1060,13 @@ function renderList(){
   const q=document.getElementById('search').value.trim().toLowerCase();
   const sec=document.getElementById('sectorSel').value;
   const evMode=view==='events';
+  const fmtSel=document.getElementById('fmtSel');
+  fmtSel.style.display=evMode?'':'none';
+  const ff=evMode?fmtSel.value:'';
   document.querySelector('#sortSel option[value="lyopen"]').textContent=evMode?'Sort: Event Date':'Sort: Last Yr Opening';
   let list=apps.map((a,i)=>({a,i})).filter(({a})=>{
     if(isEvent(a)!==evMode)return false;
+    if(ff&&fmtKind(a)!==ff)return false;
     if(statusFilter&&(a['Current Status']||'Not Started')!==statusFilter)return false;
     if(openOnly&&a['Applications Open']!=='Yes')return false;
     if(sec&&a['Industry']!==sec)return false;
@@ -1099,7 +1125,7 @@ function renderList(){
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
     const evd=a['Event Date']||'';
     const evOn=isEvent(a)&&(evd||a['Format'])
-      ?`🎟️ <b>${/^\d{4}-\d{2}-\d{2}$/.test(evd)?fmtShort(evd):esc(evd||'date TBC')}</b>${a['Format']?' '+esc(a['Format']):''}`:'';
+      ?`🎟️ <b>${/^\d{4}-\d{2}-\d{2}$/.test(evd)?fmtShort(evd):esc(evd||'date TBC')}</b>${a['Format']?' '+fmtChip(a):''}`:'';
     const meta=[evOn,open,opens,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
     const docChip=(url,label)=>`<a class="doc-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>`;
     const docs=[
