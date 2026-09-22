@@ -212,6 +212,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
 .ind-tech{background:var(--s-app);color:var(--s-app-ink)}
 .gbadge{display:inline-block;background:var(--mut);color:#fff;border-radius:9px;font-size:.66rem;font-weight:700;padding:1px 6px;margin-left:4px;vertical-align:1px}
 .gbadge:empty{display:none}
+.grave-ev{display:inline-block;margin-right:6px;font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:999px;vertical-align:1px;background:var(--s-int);color:var(--s-int-ink)}
 .grave-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin:6px 2px 12px}
 .grave-card{filter:grayscale(.4);margin-bottom:10px}
 .grave-life{color:var(--danger);font-style:italic}
@@ -898,9 +899,9 @@ function renderGraveyard(){
     const ind=a['Industry']?`<span class="ind-tag ind-${esc(a['Industry']).toLowerCase()}">${esc(a['Industry'])}</span>`:'';
     const dates=[applied?`applied ${fmtShort(applied)}`:'',rej?`✝ ${fmtShort(rej)}`:''].filter(Boolean).join(' · ');
     return `<div class="card grave-card" onclick="openDetail('${esc(a['ID'])}')">
-      <div class="c-co">${esc(a['Company Name'])} ${ind}</div>
+      <div class="c-co">${isEvent(a)?'<span class="grave-ev">🎟️ Event</span>':''}${esc(a['Company Name'])} ${ind}</div>
       <div class="c-role">${esc(a['Programme/Role Name']||'')}</div>
-      <div class="c-meta">${dates}${life?` · <span class="grave-life">${life}</span>`:''}</div>
+      <div class="c-meta">${a['Current Status']!=='Rejected'?`<span class="badge ${STATUS_CLS[a['Current Status']]||'s-cant'}">${esc(a['Current Status'])}</span> `:''}${dates}${life?` · <span class="grave-life">${life}</span>`:''}</div>
     </div>`;
   }).join('');
 }
