@@ -695,9 +695,11 @@ function parseStages(str){
     return {d:(d||'').trim(), s:rest.join('|').trim()};
   }).filter(e=>e.s);
 }
+// Returns 0 on a tie so same-day stages keep the order they were logged in
+const byStageDate=(a,b)=>(a.d||'9999').localeCompare(b.d||'9999');
 function serializeStages(list){
   return list.filter(e=>e.s)
-    .sort((a,b)=>(a.d||'9999')<(b.d||'9999')?-1:1)
+    .sort(byStageDate)
     .map(e=>`${e.d}|${e.s}`).join('\n');
 }
 function stageToStatus(s){
@@ -705,11 +707,26 @@ function stageToStatus(s){
   if(!s)return null;
   if(/reject|declin|unsuccess/.test(s))return 'Rejected';
   if(/offer/.test(s))return 'Offer';
-  if(/interview|hirevue|superday|assessment centre|assessment center|\bac\b|\bvi\b|\bti\b|phone|case study/.test(s))return 'Interviewing';
+  // Recorded rounds (HireVue, CodeVue) belong to the OA stage; Interviewing
+  // means a real person, online or in person
+  if(/hirevue|codevue/.test(s))return 'OA Stage';
+  if(/interview|superday|assessment centre|assessment center|\bac\b|\bvi\b|\bti\b|phone|case study/.test(s))return 'Interviewing';
   if(/\boa\b|online assessment|test|job ?sim/.test(s))return 'OA Stage';
   if(/appli/.test(s))return 'Applied';
   return null;
 }
+// Status implied by the latest-dated stage (null if none maps)
+function latestStageStatus(str){
+  const stages=parseStages(str).filter(e=>e.d).sort(byStageDate);
+  for(let i=stages.length-1;i>=0;i--){
+    const st=stageToStatus(stages[i].s);
+    if(st)return st;
+  }
+  return null;
+}
+// The stage logged when the status moves (same as desktop). Statuses that
+// aren't a step in a process log nothing.
+const STATUS_STAGE={'Applied':'Applied','OA Stage':'OA','Interviewing':'Interview','Offer':'Offer','Rejected':'Rejected'};
 function genId(){return Math.random().toString(16).slice(2,10);}
 
 // ── UTF-8-safe base64 ─────────────────────────────────────────────────────────
@@ -789,7 +806,11 @@ function fmtShort(ds){
   const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return `${parseInt(d)} ${mon[parseInt(m)-1]} '${y.slice(2)}`;
 }
-function today(){return new Date().toISOString().slice(0,10);}
+// Local date — toISOString's UTC one reads as yesterday until 1am BST
+function today(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 async function loadData(manual){
   setDot('busy');
@@ -1305,6 +1326,14 @@ async function moveTo(status){
       if(!x)throw new Error('This application no longer exists — refresh and retry.');
       x['Current Status']=status;
       if(status==='Applied'&&!x['Date Applied'])x['Date Applied']=today();
+      // Log it in the stage history too, unless the latest stage already says so
+      const stage=STATUS_STAGE[status];
+      if(stage&&latestStageStatus(x['Stage History'])!==status){
+        const d=status==='Applied'?x['Date Applied']:today();
+        const list=parseStages(x['Stage History']);
+        if(!list.some(e=>e.d===d&&stageToStatus(e.s)===status))
+          x['Stage History']=serializeStages([...list,{d,s:stage}]);
+      }
     },`mobile: ${a['Company Name']} → ${status}`);
     render();
     toast(`${a['Company Name']} → ${status}`);
@@ -1351,15 +1380,41 @@ function closeSheet(id){document.getElementById(id).classList.remove('show');}
 function addStageRow(s,d){
   const div=document.createElement('div');div.className='stg';
   div.innerHTML=`<input type="date" class="stg-d"><input type="text" class="stg-s" list="stageOpts" placeholder="Stage">
-    <button class="stg-x" onclick="this.parentNode.remove()">×</button>`;
-  if(d)div.querySelector('.stg-d').value=d;
+    <button class="stg-x" onclick="this.parentNode.remove();syncStatusFromStages()">×</button>`;
+  // A new row (+ Add Stage) starts dated today — an undated stage never moves the status
+  div.querySelector('.stg-d').value=d??today();
   if(s)div.querySelector('.stg-s').value=s;
   document.getElementById('e_stages').appendChild(div);
+  return div;
 }
-function collectStages(){
-  return [...document.querySelectorAll('#e_stages .stg')].map(r=>({
+function collectStages(skip){
+  return [...document.querySelectorAll('#e_stages .stg')].filter(r=>r!==skip).map(r=>({
     d:r.querySelector('.stg-d').value.trim(), s:r.querySelector('.stg-s').value.trim()
   })).filter(e=>e.s);
+}
+// Status and stage history stay in step both ways, as on desktop: editing the
+// stages moves the status to the latest one, and picking a status logs it as a
+// stage dated today (Applied uses Date Applied). The logged row is remembered so
+// changing your mind rewrites it, going back removes it, and touching it makes
+// it an ordinary row.
+let autoStageRow=null;
+function syncStatusFromStages(){
+  const derived=latestStageStatus(serializeStages(collectStages()));
+  if(derived)document.getElementById('e_status').value=derived;
+}
+function logStatusStage(){
+  const status=document.getElementById('e_status').value;
+  const stage=STATUS_STAGE[status];
+  if(autoStageRow&&!autoStageRow.isConnected)autoStageRow=null;
+  if(!stage||latestStageStatus(serializeStages(collectStages(autoStageRow)))===status){
+    if(autoStageRow)autoStageRow.remove();
+    autoStageRow=null;
+    return;
+  }
+  const date=(status==='Applied'&&document.getElementById('e_applied').value)||today();
+  if(!autoStageRow){autoStageRow=addStageRow(stage,date);return;}
+  autoStageRow.querySelector('.stg-s').value=stage;
+  autoStageRow.querySelector('.stg-d').value=date;
 }
 function openEdit(id){
   const a=findApp(id);if(!a)return;
@@ -1375,7 +1430,7 @@ function openEdit(id){
   document.getElementById('e_applied').value=a['Date Applied']||'';
   document.getElementById('e_awaiting').checked=a['Awaiting Response']==='Yes';
   document.getElementById('e_note').value='';
-  document.getElementById('e_stages').innerHTML='';
+  document.getElementById('e_stages').innerHTML='';autoStageRow=null;
   parseStages(a['Stage History']).forEach(e=>addStageRow(e.s,e.d));
   document.getElementById('ovEdit').classList.add('show');
 }
@@ -1399,7 +1454,7 @@ function openAdd(){
   document.getElementById('e_applied').value='';
   document.getElementById('e_awaiting').checked=false;
   document.getElementById('e_note').value='';
-  document.getElementById('e_stages').innerHTML='';
+  document.getElementById('e_stages').innerHTML='';autoStageRow=null;
   document.getElementById('ovEdit').classList.add('show');
 }
 async function saveEdit(){
@@ -1408,10 +1463,12 @@ async function saveEdit(){
   const industry=document.getElementById('e_industry').value;
   const appopen=document.getElementById('e_appopen').value;
   const close=document.getElementById('e_close').value;
-  const applied=document.getElementById('e_applied').value;
   const awaiting=document.getElementById('e_awaiting').checked?'Yes':'';
   const note=document.getElementById('e_note').value.trim();
   const stages=serializeStages(collectStages());
+  // A blank Date Applied takes the Applied stage's date (nudges count from it)
+  const applied=document.getElementById('e_applied').value||
+    (parseStages(stages).find(e=>e.d&&stageToStatus(e.s)==='Applied')||{}).d||'';
   let msg,apply;
   if(editIsAdd){
     const co=document.getElementById('e_co').value.trim();
@@ -1559,6 +1616,20 @@ let sheetOpener=null;
 applyTheme(localStorage.getItem('tm_theme')||'system');
 
 let searchTimer;
+document.getElementById('e_stages').addEventListener('input',e=>{
+  if(autoStageRow&&autoStageRow.contains(e.target))autoStageRow=null;
+  syncStatusFromStages();
+});
+document.getElementById('e_stages').addEventListener('change',syncStatusFromStages);
+document.getElementById('e_status').addEventListener('change',logStatusStage);
+// A home-screen app resumes where it left off instead of reloading, so rows the
+// cloud sync adds (new openings, hourly) waited for a tap on ⟳. Refresh on
+// coming back — not mid-edit, and not again within a minute of the last load.
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden||!cfg().token||document.querySelector('.overlay.show'))return;
+  if(Date.now()-(+localStorage.getItem('tm_cacheAt')||0)<60000)return;
+  loadData(false);
+});
 document.getElementById('search').addEventListener('input',()=>{
   clearTimeout(searchTimer);searchTimer=setTimeout(render,120);
 });
