@@ -289,6 +289,17 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
 .stg input:first-child{width:46%}
 .stg .stg-x{flex:none;width:38px;border:1px solid var(--line);background:var(--card);border-radius:12px;color:var(--danger)}
 
+/* new-since-you-last-looked strip (sits above closing soon) */
+.new-title{flex:none;font-size:.72rem;font-weight:800;color:var(--ink);align-self:center;white-space:nowrap}
+.new-chip{flex:none;border:1px solid var(--acc);background:var(--card);color:var(--ink);border-radius:999px;
+  padding:6px 12px;font-size:.75rem;font-weight:700;white-space:nowrap}
+.new-chip b,.new-tag{background:var(--acc);color:var(--acc-ink);border-radius:999px;padding:1px 7px;
+  font-size:.66rem;font-weight:800;margin-left:5px}
+.new-seen{flex:none;border:1px dashed var(--line);background:none;color:var(--mut);border-radius:999px;
+  padding:6px 12px;font-size:.72rem;font-weight:700;white-space:nowrap}
+.new-tag{display:inline-block;vertical-align:middle;font-family:inherit}
+.card.is-new{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+
 /* closing-soon strip */
 .soon{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 14px 6px}
 .soon::-webkit-scrollbar{display:none}
@@ -436,6 +447,7 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
 
   <!-- LIST VIEW -->
   <div id="v-list">
+    <div class="soon" id="newBar" style="display:none"></div>
     <div class="soon" id="soonBar" style="display:none"></div>
     <div class="controls">
       <input id="search" type="search" placeholder="Search companies, roles, locations…">
@@ -779,10 +791,12 @@ async function commitChange(mutator,message){
   for(let attempt=0;attempt<2;attempt++){
     const {text,sha}=await ghFetchFile();
     const fresh=csvToApps(text);
+    noteArrivals(fresh);   // rows others added since the last load
     mutator(fresh);
     try{
       fileSha=await ghPutFile(toCSV(fresh),sha,message);
       apps=fresh;
+      markKnown(fresh);    // and what you just added or opened here isn't news
       setDot('ok');
       return;
     }catch(e){
@@ -823,7 +837,8 @@ async function loadData(manual){
       localStorage.setItem('tm_cacheAt',Date.now());
     }catch(e){/* storage full — offline copy just won't refresh */}
     // skip the re-render (and its scroll jump) when nothing actually changed
-    if(text!==prev||!apps.length){apps=csvToApps(text);render();}
+    if(text!==prev||!apps.length){apps=csvToApps(text);noteArrivals(apps);render();}
+    else if(knownRows===null)noteArrivals(apps);   // first run: start the memory
     setDot('ok');renderSyncAge();
     if(manual)toast('Up to date — '+apps.length+' applications');
   }catch(e){
@@ -1061,6 +1076,68 @@ function daysLeft(ds){
   return Math.round((new Date(ds+'T00:00:00')-t)/86400000);
 }
 
+// ── New since you last looked ─────────────────────────────────────────────────
+// Same rule as desktop, with this phone's own memory (localStorage): a to-do row
+// this device hasn't shown you yet, or one that has opened since, is pinned to
+// the top of the list under a ✨ strip until you open it or tap Mark seen.
+// Rows you add or open here aren't news. The first run starts empty.
+const NEW_KEEP_DAYS=14;
+let knownRows=null,newRows={};   // {id: open 1|0}, {id: {k:'new'|'open', at}}
+try{
+  knownRows=JSON.parse(localStorage.getItem('tm_known')||'null');
+  newRows=JSON.parse(localStorage.getItem('tm_new')||'{}')||{};
+}catch(e){}
+function saveNewState(){
+  try{
+    localStorage.setItem('tm_known',JSON.stringify(knownRows));
+    localStorage.setItem('tm_new',JSON.stringify(newRows));
+  }catch(e){}
+}
+const isOpenRow=a=>a['Applications Open']==='Yes'?1:0;
+function noteArrivals(list){
+  if(!list.length)return;
+  const first=knownRows===null,next={};
+  list.forEach(a=>{
+    const id=a['ID'],open=isOpenRow(a);
+    if(!first&&isTodo(a)&&!newRows[id]){
+      if(!(id in knownRows))newRows[id]={k:'new',at:Date.now()};
+      else if(open&&!knownRows[id])newRows[id]={k:'open',at:Date.now()};
+    }
+    next[id]=open;
+  });
+  knownRows=next;saveNewState();
+}
+function markKnown(list){
+  if(knownRows===null)return;
+  list.forEach(a=>{knownRows[a['ID']]=isOpenRow(a);});
+  saveNewState();
+}
+function markSeen(id){
+  if(!newRows[id])return false;
+  delete newRows[id];saveNewState();return true;
+}
+function markAllSeen(){newRows={};saveNewState();render();}
+// Still-relevant flagged rows, newest first; applied-to, deleted or 14-day-old ones drop out
+function newList(){
+  if(!apps.length)return [];
+  const cutoff=Date.now()-NEW_KEEP_DAYS*864e5,out=[];let pruned=false;
+  for(const [id,n] of Object.entries(newRows)){
+    const a=findApp(id);
+    if(!a||!isTodo(a)||n.at<cutoff){delete newRows[id];pruned=true;continue;}
+    out.push({a,k:n.k,at:n.at});
+  }
+  if(pruned)saveNewState();
+  return out.sort((x,y)=>y.at-x.at);
+}
+function renderNewBar(fresh){
+  const bar=document.getElementById('newBar');
+  if(!fresh.length){bar.style.display='none';bar.innerHTML='';return;}
+  bar.style.display='';
+  bar.innerHTML='<span class="new-title">✨ New:</span>'+fresh.map(({a,k})=>
+    `<button class="new-chip" onclick="openDetail('${esc(a['ID'])}')">${isEvent(a)?'🎟️ ':''}${esc(a['Company Name'])}<b>${k==='open'?'opened':'new'}</b></button>`
+  ).join('')+'<button class="new-seen" onclick="markAllSeen()">Mark seen</button>';
+}
+
 function renderSoon(){
   // same rule as the desktop urgency bar: still to do, closing within 14 days
   const bar=document.getElementById('soonBar');
@@ -1077,6 +1154,9 @@ function renderSoon(){
 
 function renderList(){
   renderChips();
+  const fresh=newList();
+  renderNewBar(fresh);
+  const freshRank=new Map(fresh.map((n,i)=>[n.a['ID'],{...n,i}]));
   renderSoon();
   const q=document.getElementById('search').value.trim().toLowerCase();
   const sec=document.getElementById('sectorSel').value;
@@ -1107,8 +1187,10 @@ function renderList(){
       return av<bv?-sortDir:av>bv?sortDir:0;
     });
   }else{
-    // default: upcoming deadlines first, no-deadline after, rejected last
+    // default: ✨ new first, then upcoming deadlines, no-deadline after, rejected last
     list.sort((x,y)=>{
+      const nx=freshRank.get(x.a['ID'])?.i??1e9, ny=freshRank.get(y.a['ID'])?.i??1e9;
+      if(nx!==ny)return nx-ny;
       const rx=x.a['Current Status']==='Rejected'?1:0, ry=y.a['Current Status']==='Rejected'?1:0;
       if(rx!==ry)return rx-ry;
       const cx=x.a['Closing Date']||'9999', cy=y.a['Closing Date']||'9999';
@@ -1153,11 +1235,12 @@ function renderList(){
       a['Research Link']?docChip(a['Research Link'],'📓 Research'):'',
       a['Link to Cover Letter']?docChip(a['Link to Cover Letter'],'📄 Cover letter'):''
     ].filter(Boolean).join('');
-    return `<div class="card${topper?' has-topper':''}" onclick="openDetail('${esc(a['ID'])}')">
+    const nw=freshRank.get(a['ID']);
+    return `<div class="card${topper?' has-topper':''}${nw?' is-new':''}" onclick="openDetail('${esc(a['ID'])}')">
       ${topper?`<img class="card-topper" src="assets/${topper}" alt="">`:''}
       <div class="c-top">
         <div style="flex:1;min-width:0">
-          <div class="c-co">${esc(a['Company Name'])}</div>
+          <div class="c-co">${esc(a['Company Name'])}${nw?`<span class="new-tag">✨ ${nw.k==='open'?'opened':'new'}</span>`:''}</div>
           <div class="c-role">${esc(a['Programme/Role Name'])}${a['Location']?' · '+esc(a['Location']):''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex:none">
@@ -1346,6 +1429,7 @@ async function moveTo(status){
 function findApp(id){return apps.find(a=>a['ID']===id);}
 function openDetail(id){
   const a=findApp(id);if(!a)return;
+  if(markSeen(id))render();   // opening a ✨ row is seeing it
   currentId=id;
   document.getElementById('d_title').textContent=a['Company Name'];
   const rows=[];
@@ -1549,7 +1633,7 @@ function startApp(){
   document.getElementById('main').style.display='';
   // instant paint from the offline copy, then refresh from GitHub
   const cached=localStorage.getItem('tm_cache');
-  if(cached){try{apps=csvToApps(cached);render();}catch(e){}}
+  if(cached){try{apps=csvToApps(cached);noteArrivals(apps);render();}catch(e){}}
   loadData(false);
 }
 
