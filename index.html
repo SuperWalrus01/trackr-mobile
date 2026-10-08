@@ -565,6 +565,10 @@ header h1{font-size:1.08rem;flex:1;min-width:0;font-family:var(--font-round);fon
         <label>Format <span style="font-weight:400;opacity:.7">(events only)</span></label>
         <select id="e_format"><option value="">—</option><option value="In-Person">📍 In-Person</option><option value="Remote">💻 Remote (online)</option><option value="Hybrid">Hybrid</option><option value="Various">🔀 Various</option></select>
       </div>
+      <div id="e_evonly" style="display:none">
+        <label>Event Time <span style="font-weight:400;opacity:.7">(UK — puts it on your calendar at that time)</span></label><input id="e_evtime" placeholder="18:00 or 18:00-19:30" inputmode="text">
+        <label>Event Details <span style="font-weight:400;opacity:.7">(shown on the calendar entry)</span></label><textarea id="e_evdetails" placeholder="Joining link, address, dress code…"></textarea>
+      </div>
       <label>Industry</label>
       <select id="e_industry"><option value="">—</option><option>Finance</option><option>Tech</option></select>
       <label>Current Status</label>
@@ -618,7 +622,7 @@ const FIELDS = [
   'Testing/Prep Info','Current Status','Date Applied','Notes for Progress','Cover Letter Required',
   'Research Link','Acceptance Rate','Conversion Rate','Applications Open','Cover Letter Draft','Draft Made',
   'Stage History','Industry','Awaiting Response','Action By','Source',
-  'Type','Event Date','Format'
+  'Type','Event Date','Format','Event Time','Event Details'
 ];
 const STATUSES = ['Not Started','Max 1 Application','Applied','OA Stage',
   'Interviewing','Offer','Rejected','Cannot Apply'];
@@ -1228,7 +1232,7 @@ function renderList(){
     const cl=a['Cover Letter Required']==='Yes'?'✉ CL required':'';
     const evd=a['Event Date']||'';
     const evOn=isEvent(a)&&(evd||a['Format'])
-      ?`🎟️ <b>${/^\d{4}-\d{2}-\d{2}$/.test(evd)?fmtShort(evd):esc(evd||'date TBC')}</b>${a['Format']?' '+fmtChip(a):''}`:'';
+      ?`🎟️ <b>${/^\d{4}-\d{2}-\d{2}$/.test(evd)?fmtShort(evd):esc(evd||'date TBC')}${a['Event Time']?' '+esc(a['Event Time']):''}</b>${a['Format']?' '+fmtChip(a):''}`:'';
     const meta=[evOn,open,opens,close,applied,cl].filter(Boolean).join('<span style="opacity:.4"> · </span>');
     const docChip=(url,label)=>`<a class="doc-chip" href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>`;
     const docs=[
@@ -1437,7 +1441,8 @@ function openDetail(id){
   rows.push(`<div class="drow"><div class="k">Programme</div><div class="v">${esc(a['Programme/Role Name'])||'—'}</div></div>`);
   rows.push(`<div class="drow drow-status">${a['Awaiting Response']==='Yes'?'<img class="wait-hero" src="assets/char-waiting.png" alt="">':s==='Offer'?'<img class="wait-hero" src="assets/char-celebrating.png" alt="">':''}<div class="k">Status</div><div class="v"><span class="badge ${STATUS_CLS[s]||'s-not'}">${esc(s)}</span>${a['Awaiting Response']==='Yes'?' <span class="wait-chip">⏳ waiting</span>':''}</div></div>`);
   const dl=[
-    ['Type','Type'],['🎟️ Event Date','Event Date'],['Format','Format'],
+    ['Type','Type'],['🎟️ Event Date','Event Date'],['🕒 Event Time (UK)','Event Time'],['Format','Format'],
+    ['Event Details','Event Details'],
     ['Industry','Industry'],
     ['Location','Location'],['Applications Open','Applications Open'],['Opening Date','Opening Date'],
     ['Closing Date','Closing Date'],['Rolling Deadlines','Rolling Deadlines'],['Date Applied','Date Applied'],
@@ -1508,6 +1513,8 @@ function openEdit(id){
   document.getElementById('e_addonly').style.display='none';
   document.getElementById('e_industry').value=a['Industry']||'';
   syncEvStatus(a['Type']==='Event');
+  document.getElementById('e_evtime').value=a['Event Time']||'';
+  document.getElementById('e_evdetails').value=a['Event Details']||'';
   document.getElementById('e_status').value=statusesFor(a).includes(a['Current Status'])?a['Current Status']:'Not Started';
   document.getElementById('e_appopen').value=a['Applications Open']==='Yes'?'Yes':'';
   document.getElementById('e_close').value=a['Closing Date']||'';
@@ -1519,6 +1526,7 @@ function openEdit(id){
   document.getElementById('ovEdit').classList.add('show');
 }
 function syncEvStatus(ev){
+  document.getElementById('e_evonly').style.display=ev?'':'none';
   document.querySelectorAll('#e_status .ev-status').forEach(o=>{o.hidden=!ev;o.disabled=!ev;});
 }
 function openAdd(){
@@ -1531,6 +1539,8 @@ function openAdd(){
   syncEvStatus(view==='events');
   document.getElementById('e_evdate').value='';
   document.getElementById('e_format').value='';
+  document.getElementById('e_evtime').value='';
+  document.getElementById('e_evdetails').value='';
   document.getElementById('e_industry').value='';
   document.getElementById('e_status').value='Not Started';
   document.getElementById('e_appopen').value='';
@@ -1568,6 +1578,8 @@ async function saveEdit(){
     if(a['Type']==='Event'){
       a['Event Date']=document.getElementById('e_evdate').value;
       a['Format']=document.getElementById('e_format').value;
+      a['Event Time']=document.getElementById('e_evtime').value.trim();
+      a['Event Details']=document.getElementById('e_evdetails').value.trim();
     }
     a['Current Status']=status;a['Applications Open']=appopen;
     a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
@@ -1586,6 +1598,10 @@ async function saveEdit(){
       a['Current Status']=status;a['Applications Open']=appopen;
       a['Closing Date']=close;a['Date Applied']=applied;a['Stage History']=stages;
       a['Awaiting Response']=awaiting;
+      if(a['Type']==='Event'){
+        a['Event Time']=document.getElementById('e_evtime').value.trim();
+        a['Event Details']=document.getElementById('e_evdetails').value.trim();
+      }
       if(note)a['Notes for Progress']=(a['Notes for Progress']?a['Notes for Progress']+'\n':'')+`[${today()}] ${note}`;
     };
   }
